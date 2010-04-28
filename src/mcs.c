@@ -118,14 +118,11 @@ static void mcs_acquire(mr_lock_t l)
     priv = l;
     mcs = priv->mcs_head;
 
-    printf("acquiring lock\n");
-
     assert (priv->locked == 0);
 
     set_and_flush(priv->next, -1);
 
     prev_num = (int)(atomic_xchg((uintptr_t)priv->thread_id, (void*)(&mcs->head)));
-    printf("prev_num is %d\n", prev_num);
     if (prev_num == -1) {
         /* has exclusive access on lock */
         return;
@@ -137,7 +134,6 @@ static void mcs_acquire(mr_lock_t l)
      * we may have a schedule that will spin forever */
     set_and_flush(priv->locked, 1);
     offset = (long)priv - (long)mcs;
-    printf("setting offset to %d\n", offset);
     prev = (void *)mcs + sizeof(mcs_lock) + sizeof(mcs_lock_priv) * prev_num;
     set_and_flush(prev->next, offset); // use my offset
 //    set_and_flush(prev->next, priv);
@@ -155,7 +151,6 @@ static void mcs_release (mr_lock_t l)
     priv = l;
     mcs = priv->mcs_head;
 
-    printf("releasing lock\n");
     if (priv->next == -1) {
         /* set "head" to -1 (our NULL since we're using IDs not pointers */
         if (cmp_and_swp(
