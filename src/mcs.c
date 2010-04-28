@@ -42,6 +42,33 @@ typedef struct mcs_lock {
     mcs_lock_priv    *head;
 } mcs_lock;
 
+static mr_lock_t static_mcs_alloc(void * memptr)
+{
+    mcs_lock    *l;
+
+    l = memptr;
+//    l = malloc(sizeof(mcs_lock));
+    l->head = NULL;
+
+    return l;
+}
+
+static mr_lock_t static_mcs_alloc_per_thread(void * memptr, int thread_id, mr_lock_t l)
+{
+    mcs_lock_priv    *priv;
+
+    priv = memptr + sizeof(mcs_lock) + thread_id * sizeof(mcs_lock_priv);
+//    priv = malloc(sizeof(mcs_lock_priv));
+
+    priv->mcs_head = l;
+    priv->next = NULL;
+    priv->locked = 0;
+
+    return priv;
+}
+
+
+
 static mr_lock_t mcs_alloc(void)
 {
     mcs_lock    *l;
@@ -133,10 +160,12 @@ static void mcs_release (mr_lock_t l)
 
 mr_lock_ops mr_mcs_ops = {
     .alloc = mcs_alloc,
+    .static_alloc = static_mcs_alloc,
     .acquire = mcs_acquire,
     .release = mcs_release,
     .free = mcs_free,
     .alloc_per_thread = mcs_alloc_per_thread,
+    .static_alloc_per_thread = static_mcs_alloc_per_thread,
     .free_per_thread = mcs_free_per_thread,
 };
 

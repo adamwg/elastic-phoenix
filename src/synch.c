@@ -44,6 +44,36 @@ extern mr_lock_ops mr_mcs_ops;
 
 /* Initialize lock structure.
    Returns pointer to lock structure if successful. */
+mr_lock_t static_lock_alloc (void * opaque)
+{
+    mr_lock_t   mr;
+
+    mr = OPS.static_alloc(opaque);
+    assert (mr != NULL);
+
+    return mr;
+}
+
+/* Initialize private lock structure.
+   Should be called by all the participating threads.
+   Returns lock structure to use for locking by thread
+ */
+mr_lock_t static_lock_alloc_per_thread(void * opaque, int thread_id, mr_lock_t parent)
+{
+    mr_lock_t   mr;
+
+    assert (parent != NULL);
+
+    mr = OPS.static_alloc_per_thread(opaque, thread_id, parent);
+    assert (mr != NULL);
+
+    return mr;
+}
+
+
+
+/* Initialize lock structure.
+   Returns pointer to lock structure if successful. */
 mr_lock_t lock_alloc (void)
 {
     mr_lock_t   mr;

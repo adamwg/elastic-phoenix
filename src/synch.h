@@ -33,6 +33,8 @@
 typedef void* mr_lock_t;
 
 typedef struct mr_lock_ops {
+    mr_lock_t   (*static_alloc)(void *);
+    mr_lock_t   (*static_alloc_per_thread)(void *, int, mr_lock_t l);
     mr_lock_t   (*alloc)(void);
     void        (*acquire)(mr_lock_t l);
     void        (*release)(mr_lock_t l);
@@ -47,5 +49,8 @@ void        lock_release(mr_lock_t l);
 mr_lock_t   lock_alloc(void);
 mr_lock_t   lock_alloc_per_thread(mr_lock_t parent);
 void        lock_free_per_thread(mr_lock_t mr);
+
+mr_lock_t   static_lock_alloc(void *);
+mr_lock_t   static_lock_alloc_per_thread(void *, int , mr_lock_t parent);
 
 #endif /* SYNCH_H_ */
