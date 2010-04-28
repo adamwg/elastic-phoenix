@@ -30,7 +30,7 @@
 #include "synch.h"
 
 extern mr_lock_ops mr_mcs_ops;
-extern mr_lock_ops mr_ptmutex_ops;
+//extern mr_lock_ops mr_ptmutex_ops;
 
 
 #ifdef MR_LOCK_MCS

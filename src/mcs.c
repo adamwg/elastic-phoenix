@@ -24,12 +24,13 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */ 
 
-#ifdef MR_LOCK_MCS
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
 #include "synch.h"
 #include "atomic.h"
+#ifdef MR_LOCK_MCS
 
 typedef struct mcs_lock_priv {
     struct mcs_lock         *mcs_head;
@@ -82,6 +83,8 @@ static void mcs_acquire(mr_lock_t l)
     priv = l;
     mcs = priv->mcs_head;
 
+    printf("acquiring lock\n");
+
     assert (priv->locked == 0);
 
     set_and_flush(priv->next, NULL);
@@ -110,6 +113,7 @@ static void mcs_release (mr_lock_t l)
     priv = l;
     mcs = priv->mcs_head;
 
+    printf("releasing lock\n");
     if (priv->next == NULL) {
         if (cmp_and_swp(
             (uintptr_t)NULL,

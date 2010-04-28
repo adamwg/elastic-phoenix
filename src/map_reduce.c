@@ -74,7 +74,7 @@
 /* Debug printf */
 #ifdef dprintf
 #undef dprintf
-#define dprintf(...) //printf(__VA_ARGS__)
+#define dprintf(...) printf(__VA_ARGS__)
 #endif
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
