@@ -92,7 +92,7 @@ static mr_lock_t mcs_alloc_per_thread(mr_lock_t l)
     priv = malloc(sizeof(mcs_lock_priv));
 
     priv->mcs_head = l;
-    priv->next = 0;
+    priv->next = -1;
     priv->locked = 0;
 
     return priv;
@@ -122,7 +122,7 @@ static void mcs_acquire(mr_lock_t l)
 
     assert (priv->locked == 0);
 
-    set_and_flush(priv->next, NULL);
+    set_and_flush(priv->next, -1);
 
     prev_num = (int)(atomic_xchg((uintptr_t)priv->thread_id, (void*)(&mcs->head)));
     printf("prev_num is %d\n", prev_num);
@@ -138,7 +138,7 @@ static void mcs_acquire(mr_lock_t l)
     set_and_flush(priv->locked, 1);
     offset = (long)priv - (long)mcs;
     printf("setting offset to %d\n", offset);
-    prev = mcs + sizeof(mcs_lock) + sizeof(mcs_lock_priv) * prev_num;
+    prev = (void *)mcs + sizeof(mcs_lock) + sizeof(mcs_lock_priv) * prev_num;
     set_and_flush(prev->next, offset); // use my offset
 //    set_and_flush(prev->next, priv);
 
@@ -156,21 +156,21 @@ static void mcs_release (mr_lock_t l)
     mcs = priv->mcs_head;
 
     printf("releasing lock\n");
-    if (priv->next == NULL) {
+    if (priv->next == -1) {
         if (cmp_and_swp(
-            (uintptr_t)NULL,
-            (void*)(&mcs->head), (uintptr_t)priv)) {
+            (uintptr_t)-1,
+            (void*)(&mcs->head), (uintptr_t)priv->thread_id)) {
             /* we were the only one on the lock, now it's empty */
             return;
         }
 
         /* wait for next to get thrown on */
-        while (((void*)atomic_read(&(priv->next))) == NULL) {
+        while (((void*)atomic_read(&(priv->next))) == -1) {
             asm("" ::: "memory");
         }
     }
 
-    next_ptr = mcs + priv->next;
+    next_ptr = (void *)mcs + priv->next;
 //    set_and_flush(priv->next->locked, 0);
     set_and_flush(next_ptr->locked, 0);
 }
