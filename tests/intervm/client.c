@@ -68,12 +68,15 @@ int main(int argc, char ** argv){
     lock_acquire(per_thread);
     lock_release(per_thread);
 
+    j = 0;
     while (*num < 1000 * 1024 * 1024) {
         lock_acquire(per_thread);
         *num = *num + 1;
+        j++;
         printf("%d ", *num);
         lock_release(per_thread);
     }
+    printf("locked %d times\n", j);
 
     /* wake client */
     ivshmem_send(regptr, MSI_VECTOR, other);
