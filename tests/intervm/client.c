@@ -10,10 +10,10 @@
 #include <sys/select.h>
 #include <errno.h>
 #include "ivshmem.h"
+#include "synch.h"
 
 #define CHUNK_SZ (1024l*1024l*4l)
 #define MSI_VECTOR 0 /* the default vector */
-
 
 int do_select(int fd);
 
@@ -25,6 +25,8 @@ int main(int argc, char ** argv){
     int i, j, k;
     long param;
     int other;
+    mr_lock_t per_thread;
+    mr_lock_t parent;
 
     if (argc != 4){
         printf("USAGE: sum <filename> <param> <other vm>\n");
@@ -50,6 +52,18 @@ int main(int argc, char ** argv){
         close (fd);
         exit (-1);
     }
+
+    parent = static_lock_alloc(memptr);
+    per_thread = static_lock_alloc_per_thread(memptr, ivshmem_get_posn(regptr), parent);
+
+    lock_acquire(per_thread);
+    printf("sleeping for 10 seconds");
+    for (k = 0; k < 10; k++) {
+        sleep(1);
+        printf(".");
+    }
+    printf("releasing\n");
+    lock_release(per_thread);
 
     printf("waiting\n");
     rv = ivshmem_recv(fd);

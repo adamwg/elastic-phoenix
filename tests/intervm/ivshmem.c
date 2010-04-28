@@ -103,6 +103,13 @@ int ivshmem_send(void * regs, int ivshmem_cmd, int destination_vm)
     return 0;
 }
 
+int ivshmem_get_posn(void * opaque) {
+
+    int * regptr = (int *)opaque;
+
+    return regptr[IVPosition/sizeof(int)];
+}
+
 void ivshmem_print_opts(void)
 {
 #ifdef DEBUG

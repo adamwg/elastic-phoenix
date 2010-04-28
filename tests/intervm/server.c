@@ -11,6 +11,7 @@
 #include <time.h>
 #include <sys/ioctl.h>
 #include "ivshmem.h"
+#include "synch.h"
 
 #define CHUNK_SZ (4*1024*1024)
 #define MSI_VECTOR 0 /* the default MSI vector */
@@ -24,6 +25,8 @@ int main(int argc, char ** argv){
     int other;
     int i, j, k;
     int count;
+    mr_lock_t per_thread;
+    mr_lock_t parent;
 
     if (argc != 4){
         printf("USAGE: server <filename> <param> <other vm>\n");
@@ -53,7 +56,15 @@ int main(int argc, char ** argv){
         exit (-1);
     }
 
+    parent = static_lock_alloc(memptr);
+    per_thread = static_lock_alloc_per_thread(memptr, ivshmem_get_posn(regptr), parent);
+
     srand(time(NULL));
+
+    printf("acquiring\n");
+    lock_acquire(per_thread);
+    lock_release(per_thread);
+    printf("releasing\n");
 
     /* wake client */
     ivshmem_send(regptr, MSI_VECTOR, other);

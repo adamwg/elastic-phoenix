@@ -64,7 +64,7 @@ client: $(CL_OBJS) $(LIB_DEP)
 #	$(CC) $(CFLAGS) -o $@ $(WC_OBJS_SEQ) $(LIBS)
 
 %.o: %.c *.h
-	$(CC) $(CFLAGS) -c $< -o $@ -I$(HOME)/$(INC_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@ -I$(HOME)/$(INC_DIR) -I$(HOME)/src
 
 clean:
 	rm -f $(PROGS) $(SR_OBJS) $(CL_OBJS)
