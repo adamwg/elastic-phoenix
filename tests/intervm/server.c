@@ -58,18 +58,20 @@ int main(int argc, char ** argv){
     parent = static_lock_alloc(memptr);
     per_thread = static_lock_alloc_per_thread(memptr, ivshmem_get_posn(regptr), parent);
 
+    *num = 0;
     printf("sleeping for 10\n");
     lock_acquire(per_thread);
     sleep(10);
     lock_release(per_thread);
 
-    for (i = 0; i < 1024*1024; i++) {
+    for (i = 0; i < 1000 * 1024 * 1024; i++) {
         lock_acquire(per_thread);
         *num = *num + 1;
         lock_release(per_thread);
-        if (i % (100 * 1024) == 0)
-            printf("%d\n", i);
+        if (i % (100 * 1024 * 1024) == 0)
+            printf("%d\n", *num);
     }
+    printf("%d\n", *num);
 
 //    printf("md is *%20s*\n", md);
 

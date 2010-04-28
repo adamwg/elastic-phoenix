@@ -64,7 +64,11 @@ int main(int argc, char ** argv){
 
     srand(time(NULL));
 
-    while (*num < 1024 * 1024) {
+    printf("waiting for the server\n");
+    lock_acquire(per_thread);
+    lock_release(per_thread);
+
+    while (*num < 1000 * 1024 * 1024) {
         lock_acquire(per_thread);
         *num = *num + 1;
         printf("%d ", *num);

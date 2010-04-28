@@ -157,6 +157,7 @@ static void mcs_release (mr_lock_t l)
 
     printf("releasing lock\n");
     if (priv->next == -1) {
+        /* set "head" to -1 (our NULL since we're using IDs not pointers */
         if (cmp_and_swp(
             (uintptr_t)-1,
             (void*)(&mcs->head), (uintptr_t)priv->thread_id)) {

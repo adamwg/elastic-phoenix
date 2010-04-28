@@ -41,6 +41,7 @@ APPS := \
         kmeans \
         matrix_multiply \
         word_count \
+        intervm \
 #
 default: all
 
