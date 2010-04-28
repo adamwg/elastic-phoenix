@@ -67,9 +67,9 @@ int main(int argc, char ** argv){
     for (i = 0; i < 1000 * 1024 * 1024; i++) {
         lock_acquire(per_thread);
         *num = *num + 1;
-        lock_release(per_thread);
         if (i % (100 * 1024 * 1024) == 0)
             printf("%d\n", *num);
+        lock_release(per_thread);
     }
     printf("%d\n", *num);
 

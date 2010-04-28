@@ -75,6 +75,7 @@ int main(int argc, char ** argv){
         j++;
         printf("%d ", *num);
         lock_release(per_thread);
+        sleep(1);
     }
     printf("locked %d times\n", j);
 
