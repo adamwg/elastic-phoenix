@@ -56,7 +56,8 @@ int main(int argc, char ** argv){
         exit (-1);
     }
 
-    parent = static_lock_alloc(memptr);
+//    parent = static_lock_alloc(memptr);
+    parent = memptr;
     per_thread = static_lock_alloc_per_thread(memptr, ivshmem_get_posn(regptr), parent);
 
     srand(time(NULL));
