@@ -33,13 +33,17 @@
 #ifdef MR_LOCK_MCS
 
 typedef struct mcs_lock_priv {
-    struct mcs_lock         *mcs_head;
-    struct mcs_lock_priv    *next;
+    //struct mcs_lock         *mcs_head;
+    long                    mcs_head;
+    //struct mcs_lock_priv    *next;
+    long                     next;
+    int                     thread_id;
     uintptr_t               locked;
 } mcs_lock_priv;
 
 typedef struct mcs_lock {
-    mcs_lock_priv    *head;
+//    mcs_lock_priv    *head;
+    int head;
 } mcs_lock;
 
 static mr_lock_t static_mcs_alloc(void * memptr)
@@ -48,7 +52,8 @@ static mr_lock_t static_mcs_alloc(void * memptr)
 
     l = memptr;
 //    l = malloc(sizeof(mcs_lock));
-    l->head = NULL;
+    l->head = -1;
+//    l->head = -1;
 
     return l;
 }
@@ -61,7 +66,8 @@ static mr_lock_t static_mcs_alloc_per_thread(void * memptr, int thread_id, mr_lo
 //    priv = malloc(sizeof(mcs_lock_priv));
 
     priv->mcs_head = l;
-    priv->next = NULL;
+    priv->next = 0;
+    priv->thread_id = thread_id;
     priv->locked = 0;
 
     return priv;
@@ -86,7 +92,7 @@ static mr_lock_t mcs_alloc_per_thread(mr_lock_t l)
     priv = malloc(sizeof(mcs_lock_priv));
 
     priv->mcs_head = l;
-    priv->next = NULL;
+    priv->next = 0;
     priv->locked = 0;
 
     return priv;
@@ -106,6 +112,8 @@ static void mcs_acquire(mr_lock_t l)
 {
     mcs_lock        *mcs;
     mcs_lock_priv   *prev, *priv;
+    long offset;
+    int prev_num;
 
     priv = l;
     mcs = priv->mcs_head;
@@ -116,8 +124,9 @@ static void mcs_acquire(mr_lock_t l)
 
     set_and_flush(priv->next, NULL);
 
-    prev = (void*)(atomic_xchg((uintptr_t)priv, (void*)(&mcs->head)));
-    if (prev == NULL) {
+    prev_num = (int)(atomic_xchg((uintptr_t)priv->thread_id, (void*)(&mcs->head)));
+    printf("prev_num is %d\n", prev_num);
+    if (prev_num == -1) {
         /* has exclusive access on lock */
         return;
     }
@@ -127,7 +136,11 @@ static void mcs_acquire(mr_lock_t l)
     /* NOTE: this ordering is important-- if locked after next assignment,
      * we may have a schedule that will spin forever */
     set_and_flush(priv->locked, 1);
-    set_and_flush(prev->next, priv);
+    offset = (long)priv - (long)mcs;
+    printf("setting offset to %d\n", offset);
+    prev = mcs + sizeof(mcs_lock) + sizeof(mcs_lock_priv) * prev_num;
+    set_and_flush(prev->next, offset); // use my offset
+//    set_and_flush(prev->next, priv);
 
     while (atomic_read(&priv->locked)) { asm("":::"memory"); }
 }
@@ -136,6 +149,8 @@ static void mcs_release (mr_lock_t l)
 {
     mcs_lock        *mcs;
     mcs_lock_priv   *priv;
+    mcs_lock_priv   *next_ptr;
+    int *           locked_ptr;
 
     priv = l;
     mcs = priv->mcs_head;
@@ -155,7 +170,9 @@ static void mcs_release (mr_lock_t l)
         }
     }
 
-    set_and_flush(priv->next->locked, 0);
+    next_ptr = mcs + priv->next;
+//    set_and_flush(priv->next->locked, 0);
+    set_and_flush(next_ptr->locked, 0);
 }
 
 mr_lock_ops mr_mcs_ops = {
