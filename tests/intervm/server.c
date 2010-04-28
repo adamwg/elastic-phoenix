@@ -21,6 +21,7 @@ int main(int argc, char ** argv){
 
     long num_chunks, length;
     void * memptr, *regptr;
+    int * num;
     int fd, rv;
     int i, j, k;
     long param;
@@ -53,21 +54,22 @@ int main(int argc, char ** argv){
         exit (-1);
     }
 
+    num = (void*) memptr + 1024;
     parent = static_lock_alloc(memptr);
     per_thread = static_lock_alloc_per_thread(memptr, ivshmem_get_posn(regptr), parent);
 
+    printf("sleeping for 10\n");
     lock_acquire(per_thread);
-    printf("sleeping for 10 seconds");
-    for (k = 0; k < 10; k++) {
-        sleep(1);
-        printf(".");
-    }
-    printf("releasing\n");
+    sleep(10);
     lock_release(per_thread);
 
-    printf("waiting\n");
-    rv = ivshmem_recv(fd);
-    printf("rv = %d\n", rv);
+    for (i = 0; i < 1024*1024; i++) {
+        lock_acquire(per_thread);
+        *num = *num + 1;
+        lock_release(per_thread);
+        if (i % (100 * 1024) == 0)
+            printf("%d\n", i);
+    }
 
 //    printf("md is *%20s*\n", md);
 

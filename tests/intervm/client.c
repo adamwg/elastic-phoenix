@@ -23,6 +23,7 @@ int main(int argc, char ** argv){
     long * long_array;
     long param;
     int other;
+    int * num;
     int i, j, k;
     int count;
     mr_lock_t per_thread;
@@ -56,16 +57,19 @@ int main(int argc, char ** argv){
         exit (-1);
     }
 
+    num = (void*) memptr + 1024;
 //    parent = static_lock_alloc(memptr);
     parent = memptr;
     per_thread = static_lock_alloc_per_thread(memptr, ivshmem_get_posn(regptr), parent);
 
     srand(time(NULL));
 
-    printf("acquiring\n");
-    lock_acquire(per_thread);
-    lock_release(per_thread);
-    printf("releasing\n");
+    while (*num < 1024 * 1024) {
+        lock_acquire(per_thread);
+        *num = *num + 1;
+        printf("%d ", *num);
+        lock_release(per_thread);
+    }
 
     /* wake client */
     ivshmem_send(regptr, MSI_VECTOR, other);
