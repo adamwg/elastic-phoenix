@@ -493,7 +493,7 @@ env_init (map_reduce_args_t *args)
         entry_sz = sizeof(keyvals_arr_t) * env->num_reduce_tasks;
         tmp = (void*)intermediate_start + array_sz + i * entry_sz;
 
-        env->intermediate_vals[i] = (keyvals_arr_t *)tmp
+        env->intermediate_vals[i] = (keyvals_arr_t *)tmp;
     }
 
 #else
