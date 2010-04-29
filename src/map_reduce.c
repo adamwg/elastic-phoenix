@@ -74,7 +74,7 @@
 /* Debug printf */
 #ifdef dprintf
 #undef dprintf
-#define dprintf(...) printf(__VA_ARGS__)
+#define dprintf(...) //printf(__VA_ARGS__)
 #endif
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
@@ -368,6 +368,7 @@ env_init (map_reduce_args_t *args)
     mr_env_t    *env;
     int         i;
     int         num_procs;
+    void        *memptr, *intermediate_start;
 
     env = mem_malloc (sizeof (mr_env_t));
     if (env == NULL) {
@@ -464,6 +465,35 @@ env_init (map_reduce_args_t *args)
 
     /* 2. Initialize structures. */
 
+    dprintf("%d * %d\n", env->intermediate_task_alloc_len, env->num_reduce_tasks);
+
+#ifdef STATIC_MEM
+    if ((memptr = mmap(NULL, length, PROT_READ|PROT_WRITE, MAP_SHARED, fd,
+                                            1 * getpagesize())) == (void *) -1)
+    {
+        printf("mmap failed (0x%p)\n", memptr);
+        close (fd);
+        exit (-1);
+    }
+
+    // use an offset of 1024
+    intermediate_start = memptr + 1024;
+
+    env->intermediate_vals = (keyvals_arr_t **)intermediate_start;
+
+    for (i = 0; i < env->intermediate_task_alloc_len; i++)
+    {
+        int array_sz, entry_sz;
+        void * tmp;
+
+        array_sz = sizeof (keyvals_arr_t*) * env->intermediate_task_alloc_len;
+        entry_sz = sizeof(keyvals_arr_t) * env->num_reduce_tasks;
+        tmp = (void*)intermediate_start + array_sz + i * entry_sz;
+
+        env->intermediate_vals[i] = (keyvals_arr_t *)tmp
+    }
+
+#else
     env->intermediate_vals = (keyvals_arr_t **)mem_malloc (
         env->intermediate_task_alloc_len * sizeof (keyvals_arr_t*));
 
@@ -472,18 +502,22 @@ env_init (map_reduce_args_t *args)
         env->intermediate_vals[i] = (keyvals_arr_t *)mem_calloc (
             env->num_reduce_tasks, sizeof (keyvals_arr_t));
     }
+#endif
 
     if (env->oneOutputQueuePerReduceTask)
     {
         env->final_vals = 
             (keyval_arr_t *)mem_calloc (
                 env->num_reduce_tasks, sizeof (keyval_arr_t));
+
+        dprintf("tasks: %d (%d)\n", env->num_reduce_tasks, sizeof(keyvals_arr_t));
     }
     else
     {
         env->final_vals =
             (keyval_arr_t *)mem_calloc (
                 env->num_reduce_threads, sizeof (keyval_arr_t));
+        dprintf("threads: %d\n", env->num_reduce_threads);
     }
 
     for (i = 0; i < TASK_TYPE_TOTAL; i++) {
@@ -1807,7 +1841,7 @@ static void map (mr_env_t* env)
     if (num_map_tasks < env->num_map_threads)
         env->num_map_threads = num_map_tasks;
 
-    //printf (OUT_PREFIX "num_map_tasks = %d\n", env->num_map_tasks);
+    dprintf (OUT_PREFIX "num_map_tasks = %d\n", env->num_map_tasks);
 
     mem_memset (&th_arg, 0, sizeof(thread_arg_t));
     th_arg.task_type = TASK_TYPE_MAP;
