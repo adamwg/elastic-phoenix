@@ -482,6 +482,7 @@ env_init (map_reduce_args_t *args)
     // use an offset of 1024
     intermediate_start = memptr + 1024;
 
+    mem_memset(intermediate_start, 0, 8 * 1024 * 1024);
     env->intermediate_vals = (keyvals_arr_t **)intermediate_start;
 
     for (i = 0; i < env->intermediate_task_alloc_len; i++)
@@ -1867,12 +1868,14 @@ static void reduce (mr_env_t* env)
 
     start_workers (env, &th_arg);
 
+#ifndef STATIC_MEM
     /* Cleanup intermediate results. */
     for (i = 0; i < env->intermediate_task_alloc_len; ++i)
     {
         mem_free (env->intermediate_vals[i]);
     }
     mem_free (env->intermediate_vals);
+#endif
 }
 
 /**
