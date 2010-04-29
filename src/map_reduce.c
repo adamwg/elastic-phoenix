@@ -368,6 +368,7 @@ env_init (map_reduce_args_t *args)
     mr_env_t    *env;
     int         i;
     int         num_procs;
+    int         fd;
     void        *memptr, *intermediate_start;
 
     env = mem_malloc (sizeof (mr_env_t));
@@ -468,7 +469,9 @@ env_init (map_reduce_args_t *args)
     dprintf("%d * %d\n", env->intermediate_task_alloc_len, env->num_reduce_tasks);
 
 #ifdef STATIC_MEM
-    if ((memptr = mmap(NULL, length, PROT_READ|PROT_WRITE, MAP_SHARED, fd,
+    fd = open("/dev/uio0", O_RDWR);
+
+    if ((memptr = mmap(NULL, 16*1024*1024, PROT_READ|PROT_WRITE, MAP_SHARED, fd,
                                             1 * getpagesize())) == (void *) -1)
     {
         printf("mmap failed (0x%p)\n", memptr);
