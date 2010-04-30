@@ -476,13 +476,13 @@ env_init (map_reduce_args_t *args)
     if ((Shmemptr = mmap(NULL, 16*1024*1024, PROT_READ|PROT_WRITE, MAP_SHARED, fd,
                                             1 * getpagesize())) == (void *) -1)
     {
-        printf("mmap failed (0x%p)\n", memptr);
+        printf("mmap failed (0x%p)\n", Shmemptr);
         close (fd);
         exit (-1);
     }
 
     // use an offset of 1024
-    intermediate_start = memptr + 1024;
+    intermediate_start = Shmemptr + 1024;
 
     mem_memset(intermediate_start, 0, 8 * 1024 * 1024);
     env->intermediate_vals = (keyvals_arr_t **)intermediate_start;

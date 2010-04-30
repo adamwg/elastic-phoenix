@@ -33,8 +33,9 @@
 #ifdef MR_LOCK_MCS
 
 typedef struct mcs_lock_priv {
-    //struct mcs_lock         *mcs_head;
-    long                    mcs_head;
+    //  mcs_lock can be a pointer as it is only accessed by the owner of
+    //  this lock not across VMs.
+    struct mcs_lock         *mcs_head;
     //struct mcs_lock_priv    *next;
     long                     next;
     int                     thread_id;
@@ -43,7 +44,8 @@ typedef struct mcs_lock_priv {
 
 typedef struct mcs_lock {
 //    mcs_lock_priv    *head;
-    int head;
+    // this has to be a 64-bit value due to the atomic operations
+    long long head;
 } mcs_lock;
 
 static mr_lock_t static_mcs_alloc(void * memptr)
