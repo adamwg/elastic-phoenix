@@ -78,7 +78,7 @@ mr_lock_t lock_alloc (void)
 {
     mr_lock_t   mr;
 
-    mr = OPS.static_alloc();
+    mr = OPS.alloc();
     assert (mr != NULL);
 
     return mr;
@@ -94,7 +94,7 @@ mr_lock_t lock_alloc_per_thread(mr_lock_t parent)
 
     assert (parent != NULL);
 
-    mr = OPS.static_alloc_per_thread(parent);
+    mr = OPS.alloc_per_thread(parent);
     assert (mr != NULL);
 
     return mr;
