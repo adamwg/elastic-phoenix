@@ -37,6 +37,7 @@
 #include "locality.h"
 
 static int num_strands_per_chip = 0;
+extern void * Shmemptr;
 
 typedef struct {
     task_t              task; 
@@ -108,6 +109,9 @@ static inline taskQ_t* tq_init_normal(int numThreads)
     if (tq->num_queues == 0)
         tq->num_queues = 1;
 
+    /* CAM: the queues are where tasks are stored, this will need to be in
+     * shmem */
+    printf("tq->num_queues = %d\n", tq->num_queues);
     tq->queues = (queue_t **)mem_calloc (tq->num_queues, sizeof (queue_t *));
     if (tq->queues == NULL) goto fail_queues;
 
@@ -195,7 +199,7 @@ static int tq_queue_init(taskQ_t* tq, unsigned int idx)
     tq->free_queues[idx] = tq_alloc_queue();
     if (tq->free_queues[idx] == NULL) goto fail_free_queue;
 
-    tq->locks[idx].parent = lock_alloc();
+    tq->locks[idx].parent = static_lock_alloc(Shmemptr);
 
     tq->locks[idx].per_thread = (mr_lock_t *)mem_calloc(
         tq->num_threads, sizeof(mr_lock_t));
@@ -204,7 +208,8 @@ static int tq_queue_init(taskQ_t* tq, unsigned int idx)
     tq->locks[idx].chksum = 0;
     for (j = 0; j < tq->num_threads; ++j) {
         mr_lock_t   per_thread;
-        per_thread = lock_alloc_per_thread(tq->locks[idx].parent);
+        printf("allocating thread %d\n", j);
+        per_thread = static_lock_alloc_per_thread(Shmemptr, j, tq->locks[idx].parent);
         tq->locks[idx].per_thread[j] = per_thread;
         tq->locks[idx].chksum += (uintptr_t)per_thread;
     }
@@ -335,6 +340,8 @@ int tq_enqueue_seq (taskQ_t* tq, task_t *task, int lgrp)
 
     assert (task != NULL);
 
+    printf("enqueuing something %d\n", lgrp);
+    /* CAM: this is a work unit and so will need to be in the shmem region */
     entry = (tq_entry_t *)mem_malloc (sizeof (tq_entry_t));
     if (entry == NULL) {
         return -1;

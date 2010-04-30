@@ -74,7 +74,7 @@
 /* Debug printf */
 #ifdef dprintf
 #undef dprintf
-#define dprintf(...) //printf(__VA_ARGS__)
+#define dprintf(...) printf(__VA_ARGS__)
 #endif
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
@@ -184,6 +184,8 @@ static pthread_key_t emit_time_key;
 static pthread_key_t env_key;       /* Environment for current thread. */
 static pthread_key_t tpool_key;
 
+void * Shmemptr;  /* global shared memory pointer */
+
 /* Data passed on to each worker thread. */
 typedef struct
 {
@@ -260,7 +262,7 @@ map_reduce (map_reduce_args_t * args)
        /* could not allocate environment */
        return -1;
     }
-    //env_print (env);
+    env_print (env);
     env->taskQueue = tq_init (env->num_map_threads);
     assert (env->taskQueue != NULL);
 
@@ -369,7 +371,7 @@ env_init (map_reduce_args_t *args)
     int         i;
     int         num_procs;
     int         fd;
-    void        *memptr, *intermediate_start;
+    void        *intermediate_start;
 
     env = mem_malloc (sizeof (mr_env_t));
     if (env == NULL) {
@@ -471,7 +473,7 @@ env_init (map_reduce_args_t *args)
 #ifdef STATIC_MEM
     fd = open("/dev/uio0", O_RDWR);
 
-    if ((memptr = mmap(NULL, 16*1024*1024, PROT_READ|PROT_WRITE, MAP_SHARED, fd,
+    if ((Shmemptr = mmap(NULL, 16*1024*1024, PROT_READ|PROT_WRITE, MAP_SHARED, fd,
                                             1 * getpagesize())) == (void *) -1)
     {
         printf("mmap failed (0x%p)\n", memptr);
