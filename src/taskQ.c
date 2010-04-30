@@ -174,10 +174,14 @@ static void tq_queue_destroy(taskQ_t* tq, unsigned int idx)
     chksum = 0;
     for (j = 0; j < tq->num_threads; j++) {
         chksum += (uintptr_t)tq->locks[idx].per_thread[j];
+#ifndef STATIC_MEM
         lock_free_per_thread(tq->locks[idx].per_thread[j]);
+#endif
     }
 
+#ifndef STATIC_MEM
     lock_free (tq->locks[idx].parent);
+#endif
 
     mem_free (tq->locks[idx].per_thread);
     tq->locks[idx].per_thread = NULL;
