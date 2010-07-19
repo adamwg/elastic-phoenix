@@ -37,8 +37,8 @@ endif
 ifeq ($(OSTYPE),Linux)
 OS = -D_LINUX_
 CC = gcc
-#DEBUG = -g
-CFLAGS = -Wall $(OS) $(DEBUG) -O3
+DEBUG = -g
+CFLAGS = -Wall $(OS) $(DEBUG) -O3 -DSTATIC_MEM
 LIBS = -lpthread
 endif
 
