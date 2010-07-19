@@ -344,7 +344,7 @@ int tq_enqueue_seq (taskQ_t* tq, task_t *task, int lgrp)
 
     assert (task != NULL);
 
-    printf("enqueuing something %d\n", lgrp);
+/*    printf("enqueuing something %d\n", lgrp);*/
     /* CAM: this is a work unit and so will need to be in the shmem region */
     entry = (tq_entry_t *)mem_malloc (sizeof (tq_entry_t));
     if (entry == NULL) {
