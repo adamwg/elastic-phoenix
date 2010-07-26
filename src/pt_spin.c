@@ -16,7 +16,7 @@ static mr_lock_t ptspin_alloc(void)
     err = pthread_spin_init(m, PTHREAD_PROCESS_SHARED);
     assert (err == 0);
 
-    return m;
+    return (mr_lock_t)m;
 }
 
 static void ptspin_acquire(mr_lock_t l)
@@ -56,8 +56,9 @@ static mr_lock_t ptspin_static_alloc(void *mem)
 	return (mr_lock_t)mem;
 }
 
-static mr_lock_t ptspin_static_alloc_per_thread(void *mem)
+static mr_lock_t ptspin_static_alloc_per_thread(void *mem, int thread_id, mr_lock_t l)
 {
+	return mem;
 }
 
 mr_lock_ops mr_ptspin_ops = {
