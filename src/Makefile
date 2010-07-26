@@ -46,9 +46,11 @@ SRCS := \
         taskQ.c \
         mcs.c \
         pt_mutex.c \
+        pt_spin.c \
         locality.c \
         iterator.c \
         tpool.c \
+        distributed.c \
 #
 OBJS := ${SRCS:.c=.o}
 

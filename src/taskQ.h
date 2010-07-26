@@ -28,6 +28,12 @@
 #define TASK_Q_
 
 #include <stdint.h>
+#include <pthread.h>
+
+#include "synch.h"
+
+#define N_TASKS 1024
+#define TQ_SIZE sizeof(taskQ_t)
 
 typedef struct {
     union {
@@ -41,7 +47,14 @@ typedef struct {
     };
 } task_t;
 
-struct taskQ_t;
+struct taskQ_t {
+	pthread_spinlock_t lock;
+	
+	int head;
+	int tail;
+	task_t tasks[N_TASKS];
+};
+
 typedef struct taskQ_t taskQ_t;
 
 int tq_enqueue (taskQ_t* tq, task_t *task, int lgrp, int tid);

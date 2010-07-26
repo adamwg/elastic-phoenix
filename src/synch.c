@@ -31,12 +31,14 @@
 
 extern mr_lock_ops mr_mcs_ops;
 extern mr_lock_ops mr_ptmutex_ops;
-
+extern mr_lock_ops mr_ptspin_ops;
 
 #ifdef MR_LOCK_MCS
 #define OPS mr_mcs_ops
 #elif defined(MR_LOCK_PTMUTEX)
 #define OPS mr_ptmutex_ops
+#elif defined(MR_LOCK_SPIN)
+#define OPS mr_ptspin_ops
 #else
 #error No lock type defined
 #endif

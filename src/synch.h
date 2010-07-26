@@ -27,7 +27,8 @@
 #ifndef SYNCH_H_
 #define SYNCH_H_
 
-#define MR_LOCK_MCS
+#define MR_LOCK_SPIN
+//#define MR_LOCK_MCS
 //#define MR_LOCK_PTMUTEX
 
 typedef void* mr_lock_t;
