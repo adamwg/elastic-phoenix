@@ -45,6 +45,7 @@ int tq_enqueue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
 int tq_enqueue_seq (taskQ_t* tq, task_t *task, int lgrp) {
 	/* Full */
 	if((tq->head + 1) % N_TASKS == tq->tail) {
+		printf("Queue full!\n");
 		return -1;
 	}
 
