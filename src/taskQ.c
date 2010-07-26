@@ -25,7 +25,7 @@ taskQ_t *tq_init(int num_threads) {
 
 int tq_enqueue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
 	/* Full */
-	if(tq->head == tq->tail - 1) {
+	if((tq->head + 1) % N_TASKS == tq->tail) {
 		return -1;
 	}
 
@@ -34,7 +34,7 @@ int tq_enqueue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
 
 	/* Copy in the data */
 	mem_memcpy(&tq->tasks[tq->head], task, sizeof(task_t));
-	tq->head += 1;
+	tq->head = (tq->head + 1) % N_TASKS;
 
 	/* Release lock */
 	lock_release((mr_lock_t)&tq->lock);
@@ -44,13 +44,13 @@ int tq_enqueue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
 
 int tq_enqueue_seq (taskQ_t* tq, task_t *task, int lgrp) {
 	/* Full */
-	if(tq->head == tq->tail - 1) {
+	if((tq->head + 1) % N_TASKS == tq->tail) {
 		return -1;
 	}
 
 	/* Don't need to worry about locking in _seq */
 	mem_memcpy(&tq->tasks[tq->head], task, sizeof(task_t));
-	tq->head += 1;
+	tq->head = (tq->head + 1) % N_TASKS;
 
 	return 0;
 }
@@ -66,6 +66,7 @@ int tq_dequeue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
 
 	/* Grab the data */
 	mem_memcpy(task, &tq->tasks[tq->tail], sizeof(task_t));
+	tq->tail = (tq->tail + 1) % N_TASKS;
 
 	/* Release lock */
 	lock_release((mr_lock_t)&tq->lock);
