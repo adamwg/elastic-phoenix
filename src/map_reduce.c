@@ -55,6 +55,8 @@
 #include "struct.h"
 #include "tpool.h"
 
+#include "distributed.h"
+
 #if !defined(_LINUX_) && !defined(_SOLARIS_)
 #error OS not supported
 #endif
@@ -263,6 +265,7 @@ map_reduce (map_reduce_args_t * args)
        return -1;
     }
     env_print (env);
+	shm_init();
     env->taskQueue = tq_init (env->num_map_threads);
     assert (env->taskQueue != NULL);
 
@@ -470,36 +473,6 @@ env_init (map_reduce_args_t *args)
 
     dprintf("%d * %d\n", env->intermediate_task_alloc_len, env->num_reduce_tasks);
 
-#ifdef STATIC_MEM
-    fd = open("/dev/uio0", O_RDWR);
-
-    if ((Shmemptr = mmap(NULL, 16*1024*1024, PROT_READ|PROT_WRITE, MAP_SHARED, fd,
-                                            1 * getpagesize())) == (void *) -1)
-    {
-        printf("mmap failed (0x%p)\n", Shmemptr);
-        close (fd);
-        exit (-1);
-    }
-
-    // use an offset of 1024
-    intermediate_start = Shmemptr + 1024;
-
-    mem_memset(intermediate_start, 0, 8 * 1024 * 1024);
-    env->intermediate_vals = (keyvals_arr_t **)intermediate_start;
-
-    for (i = 0; i < env->intermediate_task_alloc_len; i++)
-    {
-        int array_sz, entry_sz;
-        void * tmp;
-
-        array_sz = sizeof (keyvals_arr_t*) * env->intermediate_task_alloc_len;
-        entry_sz = sizeof(keyvals_arr_t) * env->num_reduce_tasks;
-        tmp = (void*)intermediate_start + array_sz + i * entry_sz;
-
-        env->intermediate_vals[i] = (keyvals_arr_t *)tmp;
-    }
-
-#else
     env->intermediate_vals = (keyvals_arr_t **)mem_malloc (
         env->intermediate_task_alloc_len * sizeof (keyvals_arr_t*));
 
@@ -508,7 +481,6 @@ env_init (map_reduce_args_t *args)
         env->intermediate_vals[i] = (keyvals_arr_t *)mem_calloc (
             env->num_reduce_tasks, sizeof (keyvals_arr_t));
     }
-#endif
 
     if (env->oneOutputQueuePerReduceTask)
     {
@@ -1870,14 +1842,12 @@ static void reduce (mr_env_t* env)
 
     start_workers (env, &th_arg);
 
-#ifndef STATIC_MEM
     /* Cleanup intermediate results. */
     for (i = 0; i < env->intermediate_task_alloc_len; ++i)
     {
         mem_free (env->intermediate_vals[i]);
     }
     mem_free (env->intermediate_vals);
-#endif
 }
 
 /**

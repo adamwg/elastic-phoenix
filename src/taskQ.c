@@ -16,7 +16,7 @@ taskQ_t *the_tq = NULL;
 
 taskQ_t *tq_init(int num_threads) {
 	the_tq = shm_base;
-	static_lock_alloc(&the_tq->lock);
+	static_lock_alloc((mr_lock_t)&the_tq->lock);
 	the_tq->head = 0;
 	the_tq->tail = 0;
 
@@ -30,14 +30,14 @@ int tq_enqueue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
 	}
 
 	/* Acquire lock */
-	lock_acquire(&tq->lock);
+	lock_acquire((mr_lock_t)&tq->lock);
 
 	/* Copy in the data */
 	mem_memcpy(&tq->tasks[tq->head], task, sizeof(task_t));
 	tq->head += 1;
 
 	/* Release lock */
-	lock_release(&tq->lock);
+	lock_release((mr_lock_t)&tq->lock);
 
 	return 0;
 }
@@ -62,21 +62,21 @@ int tq_dequeue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
 	}
 
 	/* Acquire lock */
-	lock_acquire(&tq->lock);
+	lock_acquire((mr_lock_t)&tq->lock);
 
 	/* Grab the data */
 	mem_memcpy(task, &tq->tasks[tq->tail], sizeof(task_t));
 
 	/* Release lock */
-	lock_release(&tq->lock);
+	lock_release((mr_lock_t)&tq->lock);
 
 	return 1;
 }
 
 void tq_reset (taskQ_t* tq, int num_threads) {
-	lock_acquire(&tq->lock);
+	lock_acquire((mr_lock_t)&tq->lock);
 	tq->head = tq->tail = 0;
-	lock_release(&tq->lock);
+	lock_release((mr_lock_t)&tq->lock);
 }
 
 void tq_finalize (taskQ_t* tq) { }
