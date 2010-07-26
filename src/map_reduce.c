@@ -712,7 +712,7 @@ static bool map_worker_do_next_task (
     thread_func_arg.length = map_task.len;
     thread_func_arg.data = (void *)map_task.data;
 
-    dprintf("Task %d: - Started\n", curr_task);
+//    dprintf("Task %d: - Started\n", curr_task);
 
     /* Perform map task. */
     get_time (&begin);
@@ -723,7 +723,7 @@ static bool map_worker_do_next_task (
     args->run_time = time_diff (&end, &begin);
 #endif
 
-    dprintf("Task %d: - Done\n", curr_task);
+//    dprintf("Task %d: - Done\n", curr_task);
 
     return true;
 }
