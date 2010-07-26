@@ -186,8 +186,6 @@ static pthread_key_t emit_time_key;
 static pthread_key_t env_key;       /* Environment for current thread. */
 static pthread_key_t tpool_key;
 
-void * Shmemptr;  /* global shared memory pointer */
-
 /* Data passed on to each worker thread. */
 typedef struct
 {
@@ -373,8 +371,6 @@ env_init (map_reduce_args_t *args)
     mr_env_t    *env;
     int         i;
     int         num_procs;
-    int         fd;
-    void        *intermediate_start;
 
     env = mem_malloc (sizeof (mr_env_t));
     if (env == NULL) {
@@ -473,8 +469,8 @@ env_init (map_reduce_args_t *args)
 
     dprintf("%d * %d\n", env->intermediate_task_alloc_len, env->num_reduce_tasks);
 
-    env->intermediate_vals = (keyvals_arr_t **)mem_malloc (
-        env->intermediate_task_alloc_len * sizeof (keyvals_arr_t*));
+    env->intermediate_vals = (keyvals_arr_t **)mem_calloc (
+        env->intermediate_task_alloc_len, sizeof (keyvals_arr_t*));
 
     for (i = 0; i < env->intermediate_task_alloc_len; i++)
     {
@@ -488,7 +484,7 @@ env_init (map_reduce_args_t *args)
             (keyval_arr_t *)mem_calloc (
                 env->num_reduce_tasks, sizeof (keyval_arr_t));
 
-        dprintf("tasks: %d (%d)\n", env->num_reduce_tasks, sizeof(keyvals_arr_t));
+        dprintf("tasks: %d (%ld)\n", env->num_reduce_tasks, sizeof(keyvals_arr_t));
     }
     else
     {
