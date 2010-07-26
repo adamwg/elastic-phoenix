@@ -32,7 +32,7 @@
 
 #include "synch.h"
 
-#define N_TASKS 1024
+#define N_TASKS 32770
 #define TQ_SIZE sizeof(taskQ_t)
 
 typedef struct {
