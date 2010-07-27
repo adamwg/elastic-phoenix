@@ -923,8 +923,10 @@ static bool reduce_worker_do_next_task (
         keyvals_arr_t   *arr;
 
         arr = &env->intermediate_vals[curr_thread][curr_reduce_task];
-        if (arr->alloc_len != 0)
+        if (arr->alloc_len != 0) {
             mem_free(arr->arr);
+			arr->alloc_len = 0;
+		}
     }
 
     return true;
