@@ -56,6 +56,7 @@
 #include "tpool.h"
 
 #include "distributed.h"
+#include "shm_alloc.h"
 
 #if !defined(_LINUX_) && !defined(_SOLARIS_)
 #error OS not supported
@@ -267,6 +268,8 @@ map_reduce (map_reduce_args_t * args)
     env->taskQueue = tq_init (env->num_map_threads);
     assert (env->taskQueue != NULL);
 
+	shm_alloc_init(shm_base + TQ_SIZE, SHM_SIZE - TQ_SIZE, 1);
+
     /* Reuse thread pool. */
     env->tpool = pthread_getspecific (tpool_key);
     if (env->tpool == NULL) {
@@ -469,28 +472,32 @@ env_init (map_reduce_args_t *args)
 
     dprintf("%d * %d\n", env->intermediate_task_alloc_len, env->num_reduce_tasks);
 
-    env->intermediate_vals = (keyvals_arr_t **)mem_calloc (
-        env->intermediate_task_alloc_len, sizeof (keyvals_arr_t*));
+    env->intermediate_vals = (keyvals_arr_t **)shm_alloc (
+        env->intermediate_task_alloc_len * sizeof (keyvals_arr_t*));
+	memset(env->intermediate_vals, 0, env->intermediate_task_alloc_len * sizeof (keyvals_arr_t*));
 
     for (i = 0; i < env->intermediate_task_alloc_len; i++)
     {
-        env->intermediate_vals[i] = (keyvals_arr_t *)mem_calloc (
-            env->num_reduce_tasks, sizeof (keyvals_arr_t));
+        env->intermediate_vals[i] = (keyvals_arr_t *)shm_alloc (
+            env->num_reduce_tasks * sizeof (keyvals_arr_t));
+		memset(env->intermediate_vals[i], 0, env->num_reduce_tasks * sizeof (keyvals_arr_t));
     }
 
     if (env->oneOutputQueuePerReduceTask)
     {
         env->final_vals = 
-            (keyval_arr_t *)mem_calloc (
-                env->num_reduce_tasks, sizeof (keyval_arr_t));
+            (keyval_arr_t *)shm_alloc (
+                env->num_reduce_tasks * sizeof (keyval_arr_t));
+		memset(env->final_vals, 0, env->num_reduce_tasks * sizeof(keyval_arr_t));
 
         dprintf("tasks: %d (%ld)\n", env->num_reduce_tasks, sizeof(keyvals_arr_t));
     }
     else
     {
         env->final_vals =
-            (keyval_arr_t *)mem_calloc (
-                env->num_reduce_threads, sizeof (keyval_arr_t));
+            (keyval_arr_t *)shm_alloc (
+                env->num_reduce_threads * sizeof (keyval_arr_t));
+		memset(env->final_vals, 0, env->num_reduce_threads * sizeof(keyval_arr_t));
         dprintf("threads: %d\n", env->num_reduce_threads);
     }
 

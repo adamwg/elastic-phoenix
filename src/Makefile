@@ -51,6 +51,7 @@ SRCS := \
         iterator.c \
         tpool.c \
         distributed.c \
+        shm_alloc.c \
 #
 OBJS := ${SRCS:.c=.o}
 

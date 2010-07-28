@@ -9,13 +9,6 @@
 #include "distributed.h"
 #include "stddefines.h"
 
-/* The Nahanni device */
-#define SHM_DEV        "/dev/uio0"
-/* The size of the shared memory, in bytes */
-#define SHM_SIZE       (1024L * 1024L * 1024L)
-/* Where we should map the memory */
-#define SHM_LOC        (void *)(1024L * 1024L * 1024L * 1024L)
-
 void shm_init() {
 	int fd;
 

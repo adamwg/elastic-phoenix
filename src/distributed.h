@@ -3,6 +3,13 @@
 
 #define N_WORKERS 2
 
+/* The Nahanni device */
+#define SHM_DEV        "/dev/uio0"
+/* The size of the shared memory, in bytes */
+#define SHM_SIZE       (1024L * 1024L * 1024L)
+/* Where we should map the memory */
+#define SHM_LOC        (void *)(1024L * 1024L * 1024L * 1024L)
+
 #ifdef MASTER_APP
 #ifdef WORKER_APP
 #error "Enable only one of MASTER_APP or WORKER_APP"
