@@ -16,5 +16,5 @@ void shm_init() {
 	fd = open(SHM_DEV, O_RDWR);
 	CHECK_ERROR(fd < 0);
 	shm_base = mmap(SHM_LOC, SHM_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 1*getpagesize());
-	CHECK_ERROR(shm_base == MAP_FAILED);
+	CHECK_ERROR(shm_base != SHM_LOC);
 }
