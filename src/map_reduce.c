@@ -597,7 +597,7 @@ start_workers (mr_env_t* env, thread_arg_t *th_arg)
         num_threads, sizeof (thread_info_t));
     th_arg->env = env;
 
-    th_arg_array = (thread_arg_t **)mem_malloc (
+    th_arg_array = (thread_arg_t **)shm_alloc (
         sizeof (thread_arg_t *) * num_threads);
     CHECK_ERROR (th_arg_array == NULL);
 
@@ -607,7 +607,7 @@ start_workers (mr_env_t* env, thread_arg_t *th_arg)
         th_arg->cpu_id = cpu;
         th_arg->thread_id = thread_index;
 
-        th_arg_array[thread_index] = mem_malloc (sizeof (thread_arg_t));
+        th_arg_array[thread_index] = shm_alloc (sizeof (thread_arg_t));
         CHECK_ERROR (th_arg_array[thread_index] == NULL);
         mem_memcpy (th_arg_array[thread_index], th_arg, sizeof (thread_arg_t));
     }
@@ -625,7 +625,7 @@ start_workers (mr_env_t* env, thread_arg_t *th_arg)
     combiner_time += timing->combiner_time;
     mem_free (timing);
 #endif
-    mem_free (th_arg_array[0]);
+    shm_free (th_arg_array[0]);
 
     /* Barrier, wait for all threads to finish. */
     CHECK_ERROR (tpool_wait (env->tpool));
@@ -641,10 +641,10 @@ start_workers (mr_env_t* env, thread_arg_t *th_arg)
         combiner_time += timing->combiner_time;
         mem_free (timing);
 #endif
-        mem_free (th_arg_array[thread_index]);
+        shm_free (th_arg_array[thread_index]);
     }
 
-    mem_free (th_arg_array);
+    shm_free (th_arg_array);
     mem_free (rets);
 
 #ifdef TIMING
