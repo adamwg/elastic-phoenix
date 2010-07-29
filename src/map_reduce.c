@@ -1907,7 +1907,7 @@ static void merge (mr_env_t* env)
     env->args->result->data = env->merge_vals[0].arr;
     env->args->result->length = env->merge_vals[0].len;
 
-    shm_free(env->merge_vals);
+    mem_free(env->merge_vals);
 }
 
 static inline mr_env_t* get_env (void)
