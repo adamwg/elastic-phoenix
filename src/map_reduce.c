@@ -486,7 +486,7 @@ env_init (map_reduce_args_t *args)
     if (env->oneOutputQueuePerReduceTask)
     {
         env->final_vals = 
-            (keyval_arr_t *)mem_malloc (
+            (keyval_arr_t *)shm_alloc (
                 env->num_reduce_tasks * sizeof (keyval_arr_t));
 		memset(env->final_vals, 0, env->num_reduce_tasks * sizeof(keyval_arr_t));
 
@@ -495,7 +495,7 @@ env_init (map_reduce_args_t *args)
     else
     {
         env->final_vals =
-            (keyval_arr_t *)mem_malloc (
+            (keyval_arr_t *)shm_alloc (
                 env->num_reduce_threads * sizeof (keyval_arr_t));
 		memset(env->final_vals, 0, env->num_reduce_threads * sizeof(keyval_arr_t));
         dprintf("threads: %d\n", env->num_reduce_threads);
@@ -1874,10 +1874,12 @@ static void merge (mr_env_t* env)
 
     if (th_arg.merge_len <= 1) {
         /* Already merged, nothing to do here */
-        env->args->result->data = env->final_vals->arr;
+        env->args->result->data = mem_malloc(env->final_vals->len);
+		mem_memcpy(env->args->result->data, env->final_vals->arr, env->final_vals->len);
         env->args->result->length = env->final_vals->len;
 
-        mem_free(env->final_vals);
+		shm_free(env->final_vals->arr);
+        shm_free(env->final_vals);
 
         return;
     }
@@ -1904,9 +1906,11 @@ static void merge (mr_env_t* env)
         th_arg.merge_input = env->merge_vals;
     }
 
-    env->args->result->data = env->merge_vals[0].arr;
+    env->args->result->data = mem_malloc(env->merge_vals[0].len);
+	mem_memcpy(env->args->result->data, env->merge_vals[0].arr, env->merge_vals[0].len);
     env->args->result->length = env->merge_vals[0].len;
 
+	shm_free(env->merge_vals[0].arr);
     shm_free(env->merge_vals);
 }
 
