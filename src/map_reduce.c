@@ -255,7 +255,10 @@ map_reduce (map_reduce_args_t * args)
     assert (args->unit_size > 0);
     assert (args->result != NULL);
 
+	shm_init();
+
     get_time (&begin);
+	shm_alloc_init(shm_base + TQ_SIZE, SHM_SIZE - TQ_SIZE, 1);
 
     /* Initialize environment. */
     env = env_init (args);
@@ -264,11 +267,8 @@ map_reduce (map_reduce_args_t * args)
        return -1;
     }
     env_print (env);
-	shm_init();
     env->taskQueue = tq_init (env->num_map_threads);
     assert (env->taskQueue != NULL);
-
-	shm_alloc_init(shm_base + TQ_SIZE, SHM_SIZE - TQ_SIZE, 1);
 
     /* Reuse thread pool. */
     env->tpool = pthread_getspecific (tpool_key);
