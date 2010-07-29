@@ -486,7 +486,7 @@ env_init (map_reduce_args_t *args)
     if (env->oneOutputQueuePerReduceTask)
     {
         env->final_vals = 
-            (keyval_arr_t *)shm_alloc (
+            (keyval_arr_t *)mem_malloc (
                 env->num_reduce_tasks * sizeof (keyval_arr_t));
 		memset(env->final_vals, 0, env->num_reduce_tasks * sizeof(keyval_arr_t));
 
@@ -495,7 +495,7 @@ env_init (map_reduce_args_t *args)
     else
     {
         env->final_vals =
-            (keyval_arr_t *)shm_alloc (
+            (keyval_arr_t *)mem_malloc (
                 env->num_reduce_threads * sizeof (keyval_arr_t));
 		memset(env->final_vals, 0, env->num_reduce_threads * sizeof(keyval_arr_t));
         dprintf("threads: %d\n", env->num_reduce_threads);
@@ -1877,7 +1877,7 @@ static void merge (mr_env_t* env)
         env->args->result->data = env->final_vals->arr;
         env->args->result->length = env->final_vals->len;
 
-        shm_free(env->final_vals);
+        mem_free(env->final_vals);
 
         return;
     }
