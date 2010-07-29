@@ -114,6 +114,43 @@ void *shm_alloc(size_t size) {
 	return chunklist[i].start;
 }
 
+void *shm_realloc(void *ptr, size_t sz) {
+	int i;
+	size_t tocopy;
+	void *n;
+
+	/* Find the chunk */
+	for(i = 0; i < MAX_CHUNKS; i++) {
+		if(chunklist[i].start == ptr) {
+			break;
+		}
+	}
+	/* We didn't allocate this chunk */
+	CHECK_ERROR(i == MAX_CHUNKS);
+
+	/* How much do we need to copy? */
+	if(sz > chunklist[i].size) {
+		tocopy = chunklist[i].size;
+	} else if(sz < chunklist[i].size) {
+		tocopy = sz;
+	} else {
+		/* If we're reallocing the same amount of memory, don't bother. */
+		return ptr;
+	}
+
+	/* Allocate a new chunk */
+	n = shm_alloc(sz);
+	CHECK_ERROR(n == NULL);
+
+	/* Copy over the data and free the old chunk */
+	/* NOTE: we could temporarily copy the data into local memory, then free,
+	 * then allocate and copy, to reduce failures here. --awg */
+	mem_memcpy(n, ptr, tocopy);
+	shm_free(ptr);
+
+	return n;
+}
+
 void shm_free(void *ptr) {
 	int i,j;
 

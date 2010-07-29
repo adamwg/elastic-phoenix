@@ -1496,13 +1496,13 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
             {
                 arr->alloc_len = DEFAULT_KEYVAL_ARR_LEN;
                 arr->arr = (keyvals_t *)
-                    mem_malloc (arr->alloc_len * sizeof (keyvals_t));
+                    shm_alloc (arr->alloc_len * sizeof (keyvals_t));
             }
             else
             {
                 arr->alloc_len *= 2;
                 arr->arr = (keyvals_t *)
-                    mem_realloc (arr->arr, arr->alloc_len * sizeof (keyvals_t));
+                    shm_realloc (arr->arr, arr->alloc_len * sizeof (keyvals_t));
             }
         }
 
@@ -1657,7 +1657,7 @@ merge_results (mr_env_t* env, keyval_arr_t *vals, int length)
     env->merge_vals[curr_thread].alloc_len = total_num_keys;
     env->merge_vals[curr_thread].pos = 0;
     env->merge_vals[curr_thread].arr = (keyval_t *)
-        mem_malloc(sizeof(keyval_t) * total_num_keys);
+        shm_alloc(sizeof(keyval_t) * total_num_keys);
 
     for (data_idx = 0; data_idx < total_num_keys; data_idx++) {
         /* For each keyval_t. */
@@ -1889,7 +1889,7 @@ static void merge (mr_env_t* env)
         /* This is the worst case length, 
            depending on the value of num_merge_threads. */
         env->merge_vals = (keyval_arr_t*) 
-            mem_malloc (env->num_merge_threads * sizeof(keyval_arr_t));
+            shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
 
         /* Run merge tasks and get merge values. */
         start_workers (env, &th_arg);
@@ -1907,7 +1907,7 @@ static void merge (mr_env_t* env)
     env->args->result->data = env->merge_vals[0].arr;
     env->args->result->length = env->merge_vals[0].len;
 
-    mem_free(env->merge_vals);
+    shm_free(env->merge_vals);
 }
 
 static inline mr_env_t* get_env (void)
