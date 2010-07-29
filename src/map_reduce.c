@@ -1852,7 +1852,7 @@ static void reduce (mr_env_t* env)
     {
         shm_free (env->intermediate_vals[i]);
     }
-    mem_free (env->intermediate_vals);
+    shm_free (env->intermediate_vals);
 }
 
 /**
