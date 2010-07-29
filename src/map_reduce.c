@@ -1874,7 +1874,7 @@ static void merge (mr_env_t* env)
 
     if (th_arg.merge_len <= 1) {
         /* Already merged, nothing to do here */
-        env->args->result->data = mem_malloc(env->final_vals->len);
+        env->args->result->data = mem_malloc(env->final_vals->len * sizeof(keyval_t));
 		mem_memcpy(env->args->result->data, env->final_vals->arr,
 				   env->final_vals->len * sizeof(keyval_t));
         env->args->result->length = env->final_vals->len;
@@ -1907,7 +1907,7 @@ static void merge (mr_env_t* env)
         th_arg.merge_input = env->merge_vals;
     }
 
-    env->args->result->data = mem_malloc(env->merge_vals[0].len);
+    env->args->result->data = mem_malloc(env->merge_vals[0].len * sizeof(keyval_t));
 	mem_memcpy(env->args->result->data, env->merge_vals[0].arr,
 			   env->merge_vals[0].len * sizeof(keyval_t));
     env->args->result->length = env->merge_vals[0].len;
