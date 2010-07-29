@@ -1850,7 +1850,7 @@ static void reduce (mr_env_t* env)
     /* Cleanup intermediate results. */
     for (i = 0; i < env->intermediate_task_alloc_len; ++i)
     {
-        mem_free (env->intermediate_vals[i]);
+        shm_free (env->intermediate_vals[i]);
     }
     mem_free (env->intermediate_vals);
 }
