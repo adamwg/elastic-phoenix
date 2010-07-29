@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "atomic.h"
+#include "memory.h"
 #include "shm_alloc.h"
 #include "stddefines.h"
 
