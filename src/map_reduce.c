@@ -1586,12 +1586,12 @@ insert_keyval (mr_env_t* env, keyval_arr_t *arr, void *key, void *val)
         if (arr->alloc_len == 0)
         {
             arr->alloc_len = DEFAULT_KEYVAL_ARR_LEN;
-            arr->arr = (keyval_t*)mem_malloc(arr->alloc_len * sizeof(keyval_t));
+            arr->arr = (keyval_t*)shm_alloc(arr->alloc_len * sizeof(keyval_t));
         }
         else
         {
             arr->alloc_len *= 2;
-            arr->arr = (keyval_t*)mem_realloc(arr->arr, arr->alloc_len * sizeof(keyval_t));
+            arr->arr = (keyval_t*)shm_realloc(arr->arr, arr->alloc_len * sizeof(keyval_t));
         }
     }
 
@@ -1693,7 +1693,7 @@ merge_results (mr_env_t* env, keyval_arr_t *vals, int length)
     }
 
     for (i = 0; i < length; i++) {
-        mem_free(vals[i].arr);
+        shm_free(vals[i].arr);
     }
 }
 
@@ -1877,7 +1877,7 @@ static void merge (mr_env_t* env)
         env->args->result->data = env->final_vals->arr;
         env->args->result->length = env->final_vals->len;
 
-        mem_free(env->final_vals);
+        shm_free(env->final_vals);
 
         return;
     }
