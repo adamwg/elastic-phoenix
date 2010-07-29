@@ -1894,7 +1894,7 @@ static void merge (mr_env_t* env)
         /* Run merge tasks and get merge values. */
         start_workers (env, &th_arg);
 
-        shm_free (th_arg.merge_input);
+        mem_free (th_arg.merge_input);
         th_arg.merge_len = env->num_merge_threads;
 
         env->num_merge_threads /= 2;
@@ -1907,7 +1907,7 @@ static void merge (mr_env_t* env)
     env->args->result->data = env->merge_vals[0].arr;
     env->args->result->length = env->merge_vals[0].len;
 
-    mem_free(env->merge_vals);
+    shm_free(env->merge_vals);
 }
 
 static inline mr_env_t* get_env (void)
