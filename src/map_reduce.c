@@ -240,7 +240,10 @@ map_reduce_init ()
 
     CHECK_ERROR (pthread_setspecific (tpool_key, NULL));
 
-    return 0;
+	shm_init();
+	shm_alloc_init(shm_base + TQ_SIZE, SHM_SIZE - TQ_SIZE, 1);
+
+	return 0;
 }
 
 int
@@ -255,10 +258,7 @@ map_reduce (map_reduce_args_t * args)
     assert (args->unit_size > 0);
     assert (args->result != NULL);
 
-	shm_init();
-
     get_time (&begin);
-	shm_alloc_init(shm_base + TQ_SIZE, SHM_SIZE - TQ_SIZE, 1);
 
     /* Initialize environment. */
     env = env_init (args);
