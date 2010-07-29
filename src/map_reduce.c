@@ -251,12 +251,17 @@ map_reduce (map_reduce_args_t * args)
 {
     struct timeval begin, end;
     mr_env_t* env;
+	void *input;
 
     assert (args != NULL);
     assert (args->map != NULL);
     assert (args->key_cmp != NULL);
     assert (args->unit_size > 0);
     assert (args->result != NULL);
+
+	input = args->task_data;
+	args->task_data = shm_alloc(args->data_size);
+	mem_memcpy(args->task_data, input, args->data_size);
 
     get_time (&begin);
 
@@ -335,6 +340,8 @@ map_reduce (map_reduce_args_t * args)
     fprintf (stderr, "library finalize: %u\n", time_diff (&end, &begin));
     CHECK_ERROR (pthread_key_delete (emit_time_key));
 #endif
+
+	shm_free(args->task_data);
 
     return 0;
 }
