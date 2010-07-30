@@ -181,6 +181,22 @@ typedef struct
     tpool_t         *tpool;         /* Thread pool. */
 } mr_env_t;
 
+/* Shared mr state */
+typedef struct {
+	keyvals_arr_t **intermediate_vals;
+	keyval_arr_t *final_vals;
+	keyval_arr_t *merge_vals;
+	void *input_data;
+	mr_barrier_t mr_barrier;
+} mr_shared_env_t;
+
+mr_shared_env_t *mr_shared_env;
+
+#define BARRIER() MASTER {							\
+		barrier_init(&mr_shared_env->mr_barrier);	\
+	}												\
+	barrier(&mr_shared_env->mr_barrier)
+
 #ifdef TIMING
 static pthread_key_t emit_time_key;
 #endif
@@ -241,7 +257,7 @@ map_reduce_init ()
     CHECK_ERROR (pthread_setspecific (tpool_key, NULL));
 
 	shm_init();
-	shm_alloc_init(shm_base + TQ_SIZE, SHM_SIZE - TQ_SIZE, 1);
+	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), 1);
 
 	return 0;
 }
@@ -251,7 +267,6 @@ map_reduce (map_reduce_args_t * args)
 {
     struct timeval begin, end;
     mr_env_t* env;
-	void *input;
 
     assert (args != NULL);
     assert (args->map != NULL);
@@ -259,9 +274,17 @@ map_reduce (map_reduce_args_t * args)
     assert (args->unit_size > 0);
     assert (args->result != NULL);
 
-	input = args->task_data;
-	args->task_data = shm_alloc(args->data_size);
-	mem_memcpy(args->task_data, input, args->data_size);
+	MASTER {
+		mr_shared_env->input_data = args->task_data;
+		args->task_data = shm_alloc(args->data_size);
+		mem_memcpy(args->task_data, mr_shared_env->input_data, args->data_size);
+		mr_shared_env->input_data = args->task_data;
+		BARRIER();
+	}
+	WORKER {
+		BARRIER();
+		args->task_data = mr_shared_env->input_data;
+	}
 
     get_time (&begin);
 
@@ -479,34 +502,50 @@ env_init (map_reduce_args_t *args)
 
     dprintf("%d * %d\n", env->intermediate_task_alloc_len, env->num_reduce_tasks);
 
-    env->intermediate_vals = (keyvals_arr_t **)shm_alloc (
-        env->intermediate_task_alloc_len * sizeof (keyvals_arr_t*));
-	memset(env->intermediate_vals, 0, env->intermediate_task_alloc_len * sizeof (keyvals_arr_t*));
+	mr_shared_env = shm_base + TQ_SIZE;
+	
+	MASTER {
+		env->intermediate_vals = (keyvals_arr_t **)shm_alloc (
+			env->intermediate_task_alloc_len * sizeof (keyvals_arr_t*));
+		memset(env->intermediate_vals, 0, env->intermediate_task_alloc_len * sizeof (keyvals_arr_t*));
+		
+		for (i = 0; i < env->intermediate_task_alloc_len; i++)
+		{
+			env->intermediate_vals[i] = (keyvals_arr_t *)shm_alloc (
+				env->num_reduce_tasks * sizeof (keyvals_arr_t));
+			memset(env->intermediate_vals[i], 0, env->num_reduce_tasks * sizeof (keyvals_arr_t));
+		}
 
-    for (i = 0; i < env->intermediate_task_alloc_len; i++)
-    {
-        env->intermediate_vals[i] = (keyvals_arr_t *)shm_alloc (
-            env->num_reduce_tasks * sizeof (keyvals_arr_t));
-		memset(env->intermediate_vals[i], 0, env->num_reduce_tasks * sizeof (keyvals_arr_t));
-    }
+		mr_shared_env->intermediate_vals = env->intermediate_vals;
+		
+		if (env->oneOutputQueuePerReduceTask)
+		{
+			env->final_vals = 
+				(keyval_arr_t *)shm_alloc (
+					env->num_reduce_tasks * sizeof (keyval_arr_t));
+			memset(env->final_vals, 0, env->num_reduce_tasks * sizeof(keyval_arr_t));
+			
+			dprintf("tasks: %d (%ld)\n", env->num_reduce_tasks, sizeof(keyvals_arr_t));
+		}
+		else
+		{
+			env->final_vals =
+				(keyval_arr_t *)shm_alloc (
+					env->num_reduce_threads * sizeof (keyval_arr_t));
+			memset(env->final_vals, 0, env->num_reduce_threads * sizeof(keyval_arr_t));
+			dprintf("threads: %d\n", env->num_reduce_threads);
+		}
 
-    if (env->oneOutputQueuePerReduceTask)
-    {
-        env->final_vals = 
-            (keyval_arr_t *)shm_alloc (
-                env->num_reduce_tasks * sizeof (keyval_arr_t));
-		memset(env->final_vals, 0, env->num_reduce_tasks * sizeof(keyval_arr_t));
+		mr_shared_env->final_vals = env->final_vals;
 
-        dprintf("tasks: %d (%ld)\n", env->num_reduce_tasks, sizeof(keyvals_arr_t));
-    }
-    else
-    {
-        env->final_vals =
-            (keyval_arr_t *)shm_alloc (
-                env->num_reduce_threads * sizeof (keyval_arr_t));
-		memset(env->final_vals, 0, env->num_reduce_threads * sizeof(keyval_arr_t));
-        dprintf("threads: %d\n", env->num_reduce_threads);
-    }
+		BARRIER();
+	}
+	WORKER {
+		BARRIER();
+		
+		env->intermediate_vals = mr_shared_env->intermediate_vals;
+		env->final_vals = mr_shared_env->final_vals;
+	}
 
     for (i = 0; i < TASK_TYPE_TOTAL; i++) {
         /* TODO: Make this tunable */
@@ -1896,11 +1935,20 @@ static void merge (mr_env_t* env)
     while (th_arg.merge_len > 1) {
         th_arg.merge_round += 1;
 
-        /* This is the worst case length, 
-           depending on the value of num_merge_threads. */
-        env->merge_vals = (keyval_arr_t*) 
-            shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
+		MASTER {
+			/* This is the worst case length, 
+			   depending on the value of num_merge_threads. */
+			env->merge_vals = (keyval_arr_t*) 
+				shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
 
+			mr_shared_env->merge_vals = env->merge_vals;
+			BARRIER();
+		}
+		WORKER {
+			BARRIER();
+			env->merge_vals = mr_shared_env->merge_vals;
+		}
+		
         /* Run merge tasks and get merge values. */
         start_workers (env, &th_arg);
 

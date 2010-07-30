@@ -1,7 +1,11 @@
 #ifndef DISTRIBUTED_H_
 #define DISTRIBUTED_H_
 
-#define N_WORKERS 2
+#include <pthread.h>
+
+#include "synch.h"
+
+#define N_WORKERS 1
 
 /* The Nahanni device */
 #define SHM_DEV        "/dev/uio0"
@@ -28,8 +32,17 @@
 #define WORKER if(0)
 #endif /* WORKER_APP */
 
+typedef struct {
+	pthread_spinlock_t lock;
+	int count;
+	int alldone;
+	int exited;
+} mr_barrier_t;
+
 void *shm_base;
 
 void shm_init();
+void barrier_init(mr_barrier_t *bar);
+void barrier(mr_barrier_t *bar);
 
 #endif /* DISTRIBUTED_H_ */
