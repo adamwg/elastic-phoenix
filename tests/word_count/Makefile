@@ -37,7 +37,7 @@ WC_OBJS := word_count.o sort.o
 WC_OBJS_PTHREAD := word_count-pthread.o sort-pthread.o
 WC_OBJS_SEQ := word_count-seq.o
 
-PROGS := word_count word_count-pthread word_count-seq
+PROGS := word_count_master word_count_worker word_count-pthread word_count-seq
 
 .PHONY: default all clean
 
@@ -45,12 +45,15 @@ default: all
 
 all: $(PROGS)
 
-word_count: $(WC_OBJS) $(LIB_DEP)
-	$(CC) $(CFLAGS) -o $@ $(WC_OBJS) $(LIBS)
+word_count_master: $(WC_OBJS) $(LIB_DEP)
+	$(CC) $(CFLAGS) -o $@ $(WC_OBJS) $(LIBS) -DMASTER_APP
+
+word_count_worker: $(WC_OBJS) $(LIB_DEP)
+	$(CC) $(CFLAGS) -o $@ $(WC_OBJS) $(LIBS) -DWORKER_APP
 
 word_count-pthread: $(WC_OBJS_PTHREAD)
 	$(CC) $(CFLAGS) -o $@ $(WC_OBJS_PTHREAD) $(LIBS)
-	
+
 word_count-seq: $(WC_OBJS_SEQ)
 	$(CC) $(CFLAGS) -o $@ $(WC_OBJS_SEQ) $(LIBS)
 
