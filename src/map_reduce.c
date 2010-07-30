@@ -289,16 +289,11 @@ map_reduce (map_reduce_args_t * args)
 
 	/* From here on we can use the real barrier */
 	MASTER {
-		mr_shared_env->input_data = args->task_data;
-		args->task_data = shm_alloc(args->data_size);
-		mem_memcpy(args->task_data, mr_shared_env->input_data, args->data_size);
-		mr_shared_env->input_data = args->task_data;
-		BARRIER();
+		mr_shared_env->input_data = shm_alloc(args->data_size);
+		mem_memcpy(mr_shared_env->input_data, args->task_data, args->data_size);
 	}
-	WORKER {
-		BARRIER();
-		args->task_data = mr_shared_env->input_data;
-	}
+	BARRIER();
+	args->task_data = mr_shared_env->input_data;
 
     get_time (&begin);
 
