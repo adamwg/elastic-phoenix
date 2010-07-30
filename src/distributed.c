@@ -30,18 +30,31 @@ void barrier_init(mr_barrier_t *bar) {
 }
 
 void barrier(mr_barrier_t *bar) {
+	/* Lock */
 	pthread_spin_lock(&bar->lock);
+
+	/* Increment the count */
 	bar->count += 1;
 
 	if(bar->count < N_WORKERS) {
+		/* If not everyone is done, unlock and wait */
 		pthread_spin_unlock(&bar->lock);
 		while(!bar->alldone);
-		fetch_and_inc(&bar->exited);
+		/* When we're all done, atomically increment the extied counter */
+		__sync_fetch_and_add(&bar->exited, 1);
 		return;
 	} else if(bar->count == N_WORKERS) {
-		bar->count = 0;
+		/* If we're the last one to get here, set the alldone flag */
 		bar->alldone = 1;
+		/* Wait for everyone else to exit */
 		while(bar->exited < N_WORKERS - 1);
+
+		/* Reset the barrier */
+		bar->count = 0;
+		bar->alldone = 0;
+		bar->exited = 0;
+
+		/* Unlock so the next barrier can work */
 		pthread_spin_unlock(&bar->lock);
 	}
 }

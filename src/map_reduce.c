@@ -183,6 +183,7 @@ typedef struct
 
 /* Shared mr state */
 typedef struct {
+	int ready;
 	keyvals_arr_t **intermediate_vals;
 	keyval_arr_t *final_vals;
 	keyval_arr_t *merge_vals;
@@ -192,10 +193,7 @@ typedef struct {
 
 mr_shared_env_t *mr_shared_env;
 
-#define BARRIER() MASTER {							\
-		barrier_init(&mr_shared_env->mr_barrier);	\
-	}												\
-	barrier(&mr_shared_env->mr_barrier)
+#define BARRIER() barrier(&mr_shared_env->mr_barrier)
 
 #ifdef TIMING
 static pthread_key_t emit_time_key;
@@ -256,10 +254,13 @@ map_reduce_init (int master)
 
     CHECK_ERROR (pthread_setspecific (tpool_key, NULL));
 
-	shm_init();
-	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), 1);
-
 	master_node = master;
+
+	shm_init();
+	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), master);
+
+	mr_shared_env = shm_base + TQ_SIZE;
+	mr_shared_env->ready = 0;
 
 	return 0;
 }
@@ -276,6 +277,17 @@ map_reduce (map_reduce_args_t * args)
     assert (args->unit_size > 0);
     assert (args->result != NULL);
 
+	/* This is, in a sense, the first "barrier".  It should probably be replaced
+	 * by an (even unreliable) interrupt at some point. */
+	MASTER {
+		barrier_init(&mr_shared_env->mr_barrier);
+		mr_shared_env->ready = 1;
+	}
+	WORKER {
+		while(!mr_shared_env->ready);
+	}
+
+	/* From here on we can use the real barrier */
 	MASTER {
 		mr_shared_env->input_data = args->task_data;
 		args->task_data = shm_alloc(args->data_size);
@@ -504,8 +516,6 @@ env_init (map_reduce_args_t *args)
 
     dprintf("%d * %d\n", env->intermediate_task_alloc_len, env->num_reduce_tasks);
 
-	mr_shared_env = shm_base + TQ_SIZE;
-	
 	MASTER {
 		env->intermediate_vals = (keyvals_arr_t **)shm_alloc (
 			env->intermediate_task_alloc_len * sizeof (keyvals_arr_t*));
