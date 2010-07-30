@@ -284,7 +284,7 @@ int main(int argc, char *argv[])
     wc_data.flen = finfo.st_size;
     wc_data.fdata = fdata;
 
-    CHECK_ERROR (map_reduce_init ());
+    CHECK_ERROR (map_reduce_init (MASTER));
 
     // Setup map reduce args
     map_reduce_args_t map_reduce_args;

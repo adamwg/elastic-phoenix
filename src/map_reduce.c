@@ -250,7 +250,7 @@ static void run_combiner (mr_env_t* env, int thread_idx);
 #endif
 
 int 
-map_reduce_init ()
+map_reduce_init (int master)
 {
     CHECK_ERROR (pthread_key_create (&tpool_key, NULL));
 
@@ -258,6 +258,8 @@ map_reduce_init ()
 
 	shm_init();
 	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), 1);
+
+	master_node = master;
 
 	return 0;
 }

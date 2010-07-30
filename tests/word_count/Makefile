@@ -33,11 +33,12 @@ include $(HOME)/Defines.mk
 
 LIBS += -L$(HOME)/$(LIB_DIR) -l$(PHOENIX)
 
-WC_OBJS := word_count.o sort.o
-WC_OBJS_PTHREAD := word_count-pthread.o sort-pthread.o
-WC_OBJS_SEQ := word_count-seq.o
+WC_OBJS_M := word_count_m.o sort_m.o
+WC_OBJS_W := word_count_w.o sort_w.o
+# WC_OBJS_PTHREAD := word_count-pthread.o sort-pthread.o
+# WC_OBJS_SEQ := word_count-seq.o
 
-PROGS := word_count_master word_count_worker word_count-pthread word_count-seq
+PROGS := word_count_master word_count_worker # word_count-pthread word_count-seq
 
 .PHONY: default all clean
 
@@ -45,20 +46,26 @@ default: all
 
 all: $(PROGS)
 
-word_count_master: $(WC_OBJS) $(LIB_DEP)
-	$(CC) $(CFLAGS) -o $@ $(WC_OBJS) $(LIBS) -DMASTER_APP
+word_count_master: $(WC_OBJS_M) $(LIB_DEP)
+	$(CC) $(CFLAGS) -o $@ $(WC_OBJS_M) $(LIBS)
 
-word_count_worker: $(WC_OBJS) $(LIB_DEP)
-	$(CC) $(CFLAGS) -o $@ $(WC_OBJS) $(LIBS) -DWORKER_APP
+word_count_worker: $(WC_OBJS_W) $(LIB_DEP)
+	$(CC) $(CFLAGS) -o $@ $(WC_OBJS_W) $(LIBS)
 
-word_count-pthread: $(WC_OBJS_PTHREAD)
-	$(CC) $(CFLAGS) -o $@ $(WC_OBJS_PTHREAD) $(LIBS)
+# word_count-pthread: $(WC_OBJS_PTHREAD)
+# 	$(CC) $(CFLAGS) -o $@ $(WC_OBJS_PTHREAD) $(LIBS)
 
-word_count-seq: $(WC_OBJS_SEQ)
-	$(CC) $(CFLAGS) -o $@ $(WC_OBJS_SEQ) $(LIBS)
+# word_count-seq: $(WC_OBJS_SEQ)
+# 	$(CC) $(CFLAGS) -o $@ $(WC_OBJS_SEQ) $(LIBS)
 
-%.o: %.c *.h
-	$(CC) $(CFLAGS) -c $< -o $@ -I$(HOME)/$(INC_DIR)
+%_m.o: %.c *.h
+	$(CC) $(CFLAGS) -c $< -o $@ -I$(HOME)/$(INC_DIR) -DMASTER=1
+
+%_w.o: %.c *.h
+	$(CC) $(CFLAGS) -c $< -o $@ -I$(HOME)/$(INC_DIR) -DMASTER=0
+
+# %.o: %.c *.h
+# 	$(CC) $(CFLAGS) -c $< -o $@ -I$(HOME)/$(INC_DIR)
 
 clean:
 	rm -f $(PROGS) $(WC_OBJS) $(WC_OBJS_PTHREAD) $(WC_OBJS_SEQ)
