@@ -185,6 +185,8 @@ typedef struct
 typedef struct {
 	int ready;
 	keyvals_arr_t **intermediate_vals;
+	keyval_arr_t *final_vals;
+	keyval_arr_t *merge_vals;
 	void *input_data;
 	mr_barrier_t mr_barrier;
 	int num_map_tasks;
@@ -533,12 +535,15 @@ env_init (map_reduce_args_t *args)
 			dprintf("threads: %d\n", env->num_reduce_threads);
 		}
 
+		mr_shared_env->final_vals = env->final_vals;
+
 		BARRIER();
 	}
 	WORKER {
 		BARRIER();
 		
 		env->intermediate_vals = mr_shared_env->intermediate_vals;
+		env->final_vals = mr_shared_env->final_vals;
 	}
 
     for (i = 0; i < TASK_TYPE_TOTAL; i++) {
