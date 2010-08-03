@@ -1143,8 +1143,8 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
         task = (task_queued *)mem_malloc (sizeof (task_queued));
         task->task.id = cur_task_id;
         task->task.len = (uint64_t)args.length;
-		task->task.data = (uint64_t)shm_alloc(args.length*env->args->unit_size);
-		mem_memcpy((void *)task->task.data, args.data, args.length*env->args->unit_size);
+		task->task.data = (uint64_t)shm_alloc(args.length);
+		mem_memcpy((void *)task->task.data, args.data, args.length);
 
         queue_push_back (q, &task->queue_elem);
 
@@ -1738,10 +1738,6 @@ merge_results (mr_env_t* env, keyval_arr_t *vals, int length)
                         min_keyval, sizeof(keyval_t));
         vals[min_idx].pos += 1;
     }
-
-    for (i = 0; i < length; i++) {
-        shm_free(vals[i].arr);
-    }
 }
 
 static inline int 
@@ -1972,7 +1968,6 @@ static void merge (mr_env_t* env)
         /* Run merge tasks and get merge values. */
         start_workers (env, &th_arg);
 
-        shm_free (th_arg.merge_input);
         th_arg.merge_len = env->num_merge_threads;
 
         env->num_merge_threads /= 2;
@@ -1988,7 +1983,6 @@ static void merge (mr_env_t* env)
     env->args->result->length = env->merge_vals[0].len;
 
 	shm_free(env->merge_vals[0].arr);
-    shm_free(env->merge_vals);
 }
 
 static inline mr_env_t* get_env (void)
