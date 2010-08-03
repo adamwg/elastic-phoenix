@@ -189,6 +189,8 @@ typedef struct {
 	keyval_arr_t *merge_vals;
 	void *input_data;
 	mr_barrier_t mr_barrier;
+	int num_map_tasks;
+	int num_reduce_tasks;
 } mr_shared_env_t;
 
 mr_shared_env_t *mr_shared_env;
@@ -1862,19 +1864,29 @@ static void map (mr_env_t* env)
     thread_arg_t   th_arg;
     int            num_map_tasks;
 
-    num_map_tasks = gen_map_tasks (env);
-    assert (num_map_tasks >= 0);
-
-    env->num_map_tasks = num_map_tasks;
-    if (num_map_tasks < env->num_map_threads)
-        env->num_map_threads = num_map_tasks;
-
+	MASTER {
+		num_map_tasks = gen_map_tasks (env);
+		assert (num_map_tasks >= 0);
+		
+		env->num_map_tasks = num_map_tasks;
+		mr_shared_env->num_map_tasks = num_map_tasks;
+	}
+	BARRIER();
+	WORKER {
+		env->num_map_tasks = mr_shared_env->num_map_tasks;
+	}
+	
+	if (env->num_map_tasks < env->num_map_threads)
+		env->num_map_threads = env->num_map_tasks;
+		
     dprintf (OUT_PREFIX "num_map_tasks = %d\n", env->num_map_tasks);
 
-    mem_memset (&th_arg, 0, sizeof(thread_arg_t));
-    th_arg.task_type = TASK_TYPE_MAP;
-
-    start_workers (env, &th_arg);
+	WORKER {
+		mem_memset (&th_arg, 0, sizeof(thread_arg_t));
+		th_arg.task_type = TASK_TYPE_MAP;
+		
+		start_workers (env, &th_arg);
+	}
 }
 
 /**
@@ -1885,19 +1897,26 @@ static void reduce (mr_env_t* env)
     int            i;
     thread_arg_t   th_arg;
 
-    CHECK_ERROR (gen_reduce_tasks (env));
+	MASTER {
+		CHECK_ERROR (gen_reduce_tasks (env));
+	}
+	BARRIER();
 
-    mem_memset (&th_arg, 0, sizeof(thread_arg_t));
-    th_arg.task_type = TASK_TYPE_REDUCE;
+	WORKER {
+		mem_memset (&th_arg, 0, sizeof(thread_arg_t));
+		th_arg.task_type = TASK_TYPE_REDUCE;
+		
+		start_workers (env, &th_arg);
+	}
 
-    start_workers (env, &th_arg);
-
-    /* Cleanup intermediate results. */
-    for (i = 0; i < env->intermediate_task_alloc_len; ++i)
-    {
-        shm_free (env->intermediate_vals[i]);
-    }
-    shm_free (env->intermediate_vals);
+	MASTER {
+		/* Cleanup intermediate results. */
+		for (i = 0; i < env->intermediate_task_alloc_len; ++i)
+		{
+			shm_free (env->intermediate_vals[i]);
+		}
+		shm_free (env->intermediate_vals);
+	}
 }
 
 /**

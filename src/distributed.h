@@ -5,7 +5,7 @@
 
 #include "synch.h"
 
-#define N_WORKERS 1
+#define N_WORKERS 2
 
 /* The Nahanni device */
 #define SHM_DEV        "/dev/uio0"
