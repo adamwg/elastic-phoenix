@@ -187,6 +187,8 @@ typedef struct {
 	keyvals_arr_t **intermediate_vals;
 	keyval_arr_t *final_vals;
 	keyval_arr_t *merge_vals;
+	void *result;
+	int result_len;
 	mr_barrier_t mr_barrier;
 	int num_map_tasks;
 	int num_reduce_tasks;
@@ -1924,63 +1926,66 @@ static void merge (mr_env_t* env)
 {
     thread_arg_t   th_arg;
 
-	WORKER {
-		BARRIER();
-		return;
-	}
-	
-    mem_memset (&th_arg, 0, sizeof (thread_arg_t));
-    th_arg.task_type = TASK_TYPE_MERGE;
-
-    if (env->oneOutputQueuePerReduceTask) {
-        th_arg.merge_len = env->num_reduce_tasks;
-    } else {
-        th_arg.merge_len = env->num_reduce_threads;
-    }
-    th_arg.merge_input = env->final_vals;
-
-    if (th_arg.merge_len <= 1) {
-        /* Already merged, nothing to do here */
-        env->args->result->data = mem_malloc(env->final_vals->len * sizeof(keyval_t));
-		mem_memcpy(env->args->result->data, env->final_vals->arr,
-				   env->final_vals->len * sizeof(keyval_t));
-        env->args->result->length = env->final_vals->len;
-
-		shm_free(env->final_vals->arr);
-        shm_free(env->final_vals);
-
-        return;
-    }
-
-    /* have work to merge! */
-    while (th_arg.merge_len > 1) {
-        th_arg.merge_round += 1;
-
-		/* This is the worst case length, 
-		   depending on the value of num_merge_threads. */
-		env->merge_vals = (keyval_arr_t*) 
-			shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
+	MASTER {
+		mem_memset (&th_arg, 0, sizeof (thread_arg_t));
+		th_arg.task_type = TASK_TYPE_MERGE;
 		
-        /* Run merge tasks and get merge values. */
-        start_workers (env, &th_arg);
+		if (env->oneOutputQueuePerReduceTask) {
+			th_arg.merge_len = env->num_reduce_tasks;
+		} else {
+			th_arg.merge_len = env->num_reduce_threads;
+		}
+		th_arg.merge_input = env->final_vals;
+		
+		if (th_arg.merge_len <= 1) {
+			/* Already merged, nothing to do here */
+			env->args->result->data = mem_malloc(env->final_vals->len * sizeof(keyval_t));
+			mem_memcpy(env->args->result->data, env->final_vals->arr,
+					   env->final_vals->len * sizeof(keyval_t));
+			env->args->result->length = env->final_vals->len;
+			
+			shm_free(env->final_vals->arr);
+			shm_free(env->final_vals);
+			
+			return;
+		}
+		
+		/* have work to merge! */
+		while (th_arg.merge_len > 1) {
+			th_arg.merge_round += 1;
+			
+			/* This is the worst case length, 
+			   depending on the value of num_merge_threads. */
+			env->merge_vals = (keyval_arr_t*) 
+				shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
+			
+			/* Run merge tasks and get merge values. */
+			start_workers (env, &th_arg);
+			
+			th_arg.merge_len = env->num_merge_threads;
+			
+			env->num_merge_threads /= 2;
+			if (env->num_merge_threads == 0)
+				env->num_merge_threads = 1;
+			
+			th_arg.merge_input = env->merge_vals;
+		}
+		
+		env->args->result->data = shm_alloc(env->merge_vals[0].len * sizeof(keyval_t));
+		mem_memcpy(env->args->result->data, env->merge_vals[0].arr,
+				   env->merge_vals[0].len * sizeof(keyval_t));
+		env->args->result->length = env->merge_vals[0].len;
 
-        th_arg.merge_len = env->num_merge_threads;
-
-        env->num_merge_threads /= 2;
-        if (env->num_merge_threads == 0)
-            env->num_merge_threads = 1;
-
-        th_arg.merge_input = env->merge_vals;
-    }
-
-    env->args->result->data = mem_malloc(env->merge_vals[0].len * sizeof(keyval_t));
-	mem_memcpy(env->args->result->data, env->merge_vals[0].arr,
-			   env->merge_vals[0].len * sizeof(keyval_t));
-    env->args->result->length = env->merge_vals[0].len;
-
-	shm_free(env->merge_vals[0].arr);
-
+		mr_shared_env->result = env->args->result->data;
+		mr_shared_env->result_len = env->args->result->length;
+		
+		shm_free(env->merge_vals[0].arr);
+	}
 	BARRIER();
+	WORKER {
+		env->args->result->data = mr_shared_env->result;
+		env->args->result->length = mr_shared_env->result_len;
+	}
 }
 
 static inline mr_env_t* get_env (void)
