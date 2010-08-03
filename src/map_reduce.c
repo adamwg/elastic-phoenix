@@ -1887,6 +1887,7 @@ static void map (mr_env_t* env)
 		
 		start_workers (env, &th_arg);
 	}
+	BARRIER();
 }
 
 /**
@@ -1917,6 +1918,7 @@ static void reduce (mr_env_t* env)
 		}
 		shm_free (env->intermediate_vals);
 	}
+	BARRIER();
 }
 
 /**
