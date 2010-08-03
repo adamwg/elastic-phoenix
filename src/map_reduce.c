@@ -287,14 +287,6 @@ map_reduce (map_reduce_args_t * args)
 		while(!mr_shared_env->ready);
 	}
 
-	/* From here on we can use the real barrier */
-	MASTER {
-		mr_shared_env->input_data = shm_alloc(args->data_size);
-		mem_memcpy(mr_shared_env->input_data, args->task_data, args->data_size);
-	}
-	BARRIER();
-	args->task_data = mr_shared_env->input_data;
-
     get_time (&begin);
 
     /* Initialize environment. */
@@ -372,8 +364,6 @@ map_reduce (map_reduce_args_t * args)
     fprintf (stderr, "library finalize: %u\n", time_diff (&end, &begin));
     CHECK_ERROR (pthread_key_delete (emit_time_key));
 #endif
-
-	shm_free(args->task_data);
 
     return 0;
 }
@@ -1151,7 +1141,8 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
         task = (task_queued *)mem_malloc (sizeof (task_queued));
         task->task.id = cur_task_id;
         task->task.len = (uint64_t)args.length;
-        task->task.data = (uint64_t)args.data;
+		task->task.data = (uint64_t)shm_alloc(args.length);
+		mem_memcpy((void *)task->task.data, args.data, args.length);
 
         queue_push_back (q, &task->queue_elem);
 
@@ -1166,6 +1157,7 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
         {
             task = queue_entry (queue_elem, task_queued, queue_elem);
             assert (task != NULL);
+			shm_free((void *)task->task.data);
             mem_free (task);
         }
 
