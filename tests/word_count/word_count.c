@@ -129,7 +129,9 @@ int wordcount_splitter(void *data_in, int req_units, map_args_t *out)
           data->fdata[data->fpos] != ' ' && data->fdata[data->fpos] != '\t' &&
           data->fdata[data->fpos] != '\r' && data->fdata[data->fpos] != '\n';
           data->fpos++, out->length++);
-  
+
+	out->actual_size = out->length;
+	
     return 1;
 }
 

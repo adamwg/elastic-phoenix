@@ -187,7 +187,6 @@ typedef struct {
 	keyvals_arr_t **intermediate_vals;
 	keyval_arr_t *final_vals;
 	keyval_arr_t *merge_vals;
-	void *input_data;
 	mr_barrier_t mr_barrier;
 	int num_map_tasks;
 	int num_reduce_tasks;
@@ -326,26 +325,10 @@ map_reduce (map_reduce_args_t * args)
     fprintf (stderr, "library init: %u\n", time_diff (&end, &begin));
 #endif
 
-	MASTER {
-		/* Copy the input data into shmem */
-		mr_shared_env->input_data = shm_alloc(args->data_size);
-		mem_memcpy(mr_shared_env->input_data, args->task_data, args->data_size);
-		args->task_data = mr_shared_env->input_data;
-	}
-	BARRIER();
-	WORKER {
-		args->task_data = mr_shared_env->input_data;		
-	}
-
     /* Run map tasks and get intermediate values. */
     get_time (&begin);
     map (env);
     get_time (&end);
-
-	MASTER {
-		shm_free(mr_shared_env->input_data);
-	}
-	BARRIER();
 
 #ifdef TIMING
     fprintf (stderr, "map phase: %u\n", time_diff (&end, &begin));
@@ -1159,7 +1142,9 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
         task = (task_queued *)mem_malloc (sizeof (task_queued));
         task->task.id = cur_task_id;
         task->task.len = (uint64_t)args.length;
-		task->task.data = (uint64_t)args.data;
+		/* This is an ugly API change, but it's the only way... --awg */
+		task->task.data = (uint64_t)shm_alloc(args.actual_size);
+		mem_memcpy((void *)task->task.data, args.data, args.actual_size);
 
         queue_push_back (q, &task->queue_elem);
 
@@ -1833,6 +1818,7 @@ array_splitter (void *data_in, int req_units, map_args_t *out)
         out->length = req_units;
 
     env->splitter_pos += out->length;
+	out->actual_size = out->length * unit_size;
 
     /* Return true since the out data is valid. */
     return 1;
