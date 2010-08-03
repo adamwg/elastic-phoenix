@@ -1141,8 +1141,8 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
         task = (task_queued *)mem_malloc (sizeof (task_queued));
         task->task.id = cur_task_id;
         task->task.len = (uint64_t)args.length;
-		task->task.data = (uint64_t)shm_alloc(args.length);
-		mem_memcpy((void *)task->task.data, args.data, args.length);
+		task->task.data = (uint64_t)shm_alloc(args.length*env->args->unit_size);
+		mem_memcpy((void *)task->task.data, args.data, args.length*env->args->unit_size);
 
         queue_push_back (q, &task->queue_elem);
 
