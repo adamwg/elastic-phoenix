@@ -5,7 +5,8 @@
 
 #include "synch.h"
 
-#define N_WORKERS 2
+/* This is a misnomer - it's actually the number of processes (master + workers) */
+#define N_WORKERS 3
 
 /* The Nahanni device */
 #define SHM_DEV        "/dev/uio0"
