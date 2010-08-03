@@ -1970,21 +1970,18 @@ static void merge (mr_env_t* env)
 			
 			th_arg.merge_input = env->merge_vals;
 		}
-		
-		env->args->result->data = shm_alloc(env->merge_vals[0].len * sizeof(keyval_t));
-		mem_memcpy(env->args->result->data, env->merge_vals[0].arr,
-				   env->merge_vals[0].len * sizeof(keyval_t));
-		env->args->result->length = env->merge_vals[0].len;
-
-		mr_shared_env->result = env->args->result->data;
-		mr_shared_env->result_len = env->args->result->length;
-		
-		shm_free(env->merge_vals[0].arr);
 	}
 	BARRIER();
-	WORKER {
-		env->args->result->data = mr_shared_env->result;
-		env->args->result->length = mr_shared_env->result_len;
+
+	/* Both the master and the worker copy over the data from shm once we're
+	 * done because otherwise the app might do something silly */
+	env->args->result->data = mem_malloc(env->merge_vals[0].len * sizeof(keyval_t));
+	mem_memcpy(env->args->result->data, env->merge_vals[0].arr,
+			   env->merge_vals[0].len * sizeof(keyval_t));
+	env->args->result->length = env->merge_vals[0].len;
+
+	MASTER {
+		shm_free(env->merge_vals[0].arr);
 	}
 }
 
