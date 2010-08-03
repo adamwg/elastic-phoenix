@@ -264,6 +264,16 @@ map_reduce_init (int master)
 	mr_shared_env = shm_base + TQ_SIZE;
 	mr_shared_env->ready = 0;
 
+	/* This is, in a sense, the first "barrier".  It should probably be replaced
+	 * by an (even unreliable) interrupt at some point. */
+	MASTER {
+		barrier_init(&mr_shared_env->mr_barrier);
+		mr_shared_env->ready = 1;
+	}
+	WORKER {
+		while(!mr_shared_env->ready);
+	}
+
 	return 0;
 }
 
@@ -278,16 +288,6 @@ map_reduce (map_reduce_args_t * args)
     assert (args->key_cmp != NULL);
     assert (args->unit_size > 0);
     assert (args->result != NULL);
-
-	/* This is, in a sense, the first "barrier".  It should probably be replaced
-	 * by an (even unreliable) interrupt at some point. */
-	MASTER {
-		barrier_init(&mr_shared_env->mr_barrier);
-		mr_shared_env->ready = 1;
-	}
-	WORKER {
-		while(!mr_shared_env->ready);
-	}
 
     get_time (&begin);
 
