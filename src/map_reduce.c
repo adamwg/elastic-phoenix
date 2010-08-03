@@ -326,10 +326,26 @@ map_reduce (map_reduce_args_t * args)
     fprintf (stderr, "library init: %u\n", time_diff (&end, &begin));
 #endif
 
+	MASTER {
+		/* Copy the input data into shmem */
+		mr_shared_env->input_data = shm_alloc(args->data_size);
+		mem_memcpy(mr_shared_env->input_data, args->task_data, args->data_size);
+		args->task_data = mr_shared_env->input_data;
+	}
+	BARRIER();
+	WORKER {
+		args->task_data = mr_shared_env->input_data;		
+	}
+
     /* Run map tasks and get intermediate values. */
     get_time (&begin);
     map (env);
     get_time (&end);
+
+	MASTER {
+		shm_free(mr_shared_env->input_data);
+	}
+	BARRIER();
 
 #ifdef TIMING
     fprintf (stderr, "map phase: %u\n", time_diff (&end, &begin));
@@ -1143,8 +1159,7 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
         task = (task_queued *)mem_malloc (sizeof (task_queued));
         task->task.id = cur_task_id;
         task->task.len = (uint64_t)args.length;
-		task->task.data = (uint64_t)shm_alloc(args.length);
-		mem_memcpy((void *)task->task.data, args.data, args.length);
+		task->task.data = (uint64_t)args.data;
 
         queue_push_back (q, &task->queue_elem);
 
@@ -1159,7 +1174,6 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
         {
             task = queue_entry (queue_elem, task_queued, queue_elem);
             assert (task != NULL);
-			shm_free((void *)task->task.data);
             mem_free (task);
         }
 
