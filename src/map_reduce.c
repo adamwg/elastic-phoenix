@@ -1985,6 +1985,8 @@ static void merge (mr_env_t* env)
 			   env->merge_vals[0].len * sizeof(keyval_t));
 	env->args->result->length = env->merge_vals[0].len;
 
+	BARRIER();
+	
 	MASTER {
 		shm_free(env->merge_vals[0].arr);
 	}
