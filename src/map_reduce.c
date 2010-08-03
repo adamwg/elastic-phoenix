@@ -1959,6 +1959,8 @@ static void merge (mr_env_t* env)
 			env->merge_vals = (keyval_arr_t*) 
 				shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
 			
+			mr_shared_env->merge_vals = env->merge_vals;
+			
 			/* Run merge tasks and get merge values. */
 			start_workers (env, &th_arg);
 			
@@ -1972,6 +1974,9 @@ static void merge (mr_env_t* env)
 		}
 	}
 	BARRIER();
+	WORKER {
+		env->merge_vals = mr_shared_env->merge_vals;
+	}
 
 	/* Both the master and the worker copy over the data from shm once we're
 	 * done because otherwise the app might do something silly */
