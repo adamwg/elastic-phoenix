@@ -952,7 +952,7 @@ static bool reduce_worker_do_next_task (
                 vals = curr_key_val->vals;
                 while (vals != NULL) {
                     next = vals->next_val;
-                    mem_free (vals);
+                    shm_free (vals);
                     vals = next;
                 }
             }
@@ -1392,7 +1392,7 @@ static void run_combiner (mr_env_t* env, int thread_index)
             while (val)
             {
                 next = val->next_val;
-                mem_free (val);
+                shm_free (val);
                 val = next;
             }
 
@@ -1569,7 +1569,7 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
     if (insert_pos->vals == NULL)
     {
         /* Allocate a chunk for the first time. */
-        new_vals = mem_malloc 
+        new_vals = shm_alloc 
             (sizeof (val_t) + DEFAULT_VALS_ARR_LEN * sizeof (void *));
         assert (new_vals);
 
@@ -1602,7 +1602,7 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
             int alloc_size;
 
             alloc_size = insert_pos->vals->size * 2;
-            new_vals = mem_malloc (sizeof (val_t) + alloc_size * sizeof (void *));
+            new_vals = shm_alloc (sizeof (val_t) + alloc_size * sizeof (void *));
             assert (new_vals);
 
             new_vals->size = alloc_size;
