@@ -87,6 +87,7 @@
 /* A key and a value pair. */
 typedef struct 
 {
+	pthread_spinlock_t lock;
     /* TODO add static assertion to make sure this fits in L2 line */
     union {
         struct {
@@ -102,6 +103,7 @@ typedef struct
 /* Array of keyvals_t. */
 typedef struct 
 {
+	pthread_spinlock_t lock;
     int len;
     int alloc_len;
     int pos;
@@ -404,7 +406,7 @@ static mr_env_t*
 env_init (map_reduce_args_t *args) 
 {
     mr_env_t    *env;
-    int         i;
+    int         i, t;
     int         num_procs;
 
     env = mem_malloc (sizeof (mr_env_t));
@@ -513,6 +515,9 @@ env_init (map_reduce_args_t *args)
 		{
 			env->intermediate_vals[i] = (keyvals_arr_t *)shm_alloc (
 				env->num_reduce_tasks * sizeof (keyvals_arr_t));
+			for(t = 0; t < env->num_reduce_tasks; t++) {
+				pthread_spin_init(&env->intermediate_vals[i][t].lock, PTHREAD_PROCESS_SHARED);
+			}
 			memset(env->intermediate_vals[i], 0, env->num_reduce_tasks * sizeof (keyvals_arr_t));
 		}
 
@@ -524,6 +529,10 @@ env_init (map_reduce_args_t *args)
 				(keyval_arr_t *)shm_alloc (
 					env->num_reduce_tasks * sizeof (keyval_arr_t));
 			memset(env->final_vals, 0, env->num_reduce_tasks * sizeof(keyval_arr_t));
+
+			for(t = 0; t < env->num_reduce_tasks; t++) {
+				pthread_spin_init(&env->final_vals[t].lock, PTHREAD_PROCESS_SHARED);
+			}
 			
 			dprintf("tasks: %d (%ld)\n", env->num_reduce_tasks, sizeof(keyvals_arr_t));
 		}
@@ -533,6 +542,11 @@ env_init (map_reduce_args_t *args)
 				(keyval_arr_t *)shm_alloc (
 					env->num_reduce_threads * sizeof (keyval_arr_t));
 			memset(env->final_vals, 0, env->num_reduce_threads * sizeof(keyval_arr_t));
+
+			for(t = 0; t < env->num_reduce_threads; t++) {
+				pthread_spin_init(&env->final_vals[t].lock, PTHREAD_PROCESS_SHARED);
+			}
+
 			dprintf("threads: %d\n", env->num_reduce_threads);
 		}
 
@@ -1509,6 +1523,8 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
     keyvals_t *insert_pos;
     val_t *new_vals;
 
+	pthread_spin_lock(&arr->lock);
+
     assert(arr->len <= arr->alloc_len);
     if (arr->len > 0)
         cmp = env->key_cmp(arr->arr[arr->len - 1].key, key);
@@ -1618,6 +1634,8 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
     insert_pos->vals->array[insert_pos->vals->next_insert_pos++] = val;
 
     insert_pos->len += 1;
+
+	pthread_spin_unlock(&arr->lock);
 }
 
 static inline void 
@@ -1627,6 +1645,8 @@ insert_keyval (mr_env_t* env, keyval_arr_t *arr, void *key, void *val)
     int cmp = 1;
 
     assert(arr->len <= arr->alloc_len);
+
+	pthread_spin_lock(&arr->lock);
 
     /* If array is full, double and copy over. */
     if (arr->len == arr->alloc_len)
@@ -1684,6 +1704,8 @@ insert_keyval (mr_env_t* env, keyval_arr_t *arr, void *key, void *val)
     }
 
     arr->len++;
+
+	pthread_spin_unlock(&arr->lock);
 }
 
 static inline void 
