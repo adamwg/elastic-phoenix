@@ -1947,6 +1947,7 @@ static void reduce (mr_env_t* env)
 static void merge (mr_env_t* env)
 {
     thread_arg_t   th_arg;
+	int i;
 
 	MASTER {
 		mem_memset (&th_arg, 0, sizeof (thread_arg_t));
@@ -1980,6 +1981,10 @@ static void merge (mr_env_t* env)
 			   depending on the value of num_merge_threads. */
 			env->merge_vals = (keyval_arr_t*) 
 				shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
+
+			for(i = 0; i < env->num_merge_threads; i++) {
+				pthread_spin_init(&env->merge_vals[i].lock, PTHREAD_PROCESS_SHARED);
+			}
 			
 			mr_shared_env->merge_vals = env->merge_vals;
 			
