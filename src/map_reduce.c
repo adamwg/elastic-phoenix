@@ -192,6 +192,10 @@ typedef struct {
 	mr_barrier_t mr_barrier;
 	int num_map_tasks;
 	int num_reduce_tasks;
+	
+	int num_map_threads;
+	int num_reduce_threads;
+
 	int thread_counter;
 } mr_shared_env_t;
 
@@ -434,14 +438,24 @@ env_init (map_reduce_args_t *args)
     env->oneOutputQueuePerReduceTask = args->use_one_queue_per_task;
 
     /* Determine the number of threads to schedule for each type of task. */
-    env->num_map_threads = (args->num_map_threads > 0) ? 
-        args->num_map_threads : num_procs;
-	env->num_map_threads *= (N_WORKERS - 1);
-
-    env->num_reduce_threads = (args->num_reduce_threads > 0) ? 
-        args->num_reduce_threads : num_procs;
-	env->num_reduce_threads *= (N_WORKERS - 1);
-
+	MASTER {
+		env->num_map_threads = (args->num_map_threads > 0) ? 
+			args->num_map_threads : num_procs;
+		env->num_map_threads *= (N_WORKERS - 1);
+		
+		env->num_reduce_threads = (args->num_reduce_threads > 0) ? 
+			args->num_reduce_threads : num_procs;
+		env->num_reduce_threads *= (N_WORKERS - 1);
+		
+		mr_shared_env->num_map_threads = env->num_map_threads;
+		mr_shared_env->num_reduce_threads = env->num_reduce_threads;
+	}
+	BARRIER();
+	WORKER {
+		env->num_map_threads = mr_shared_env->num_map_threads;
+		env->num_reduce_threads = mr_shared_env->num_reduce_threads;
+	}
+	
     env->num_merge_threads = (args->num_merge_threads > 0) ? 
         args->num_merge_threads : env->num_reduce_threads;
 
@@ -1755,11 +1769,11 @@ getNumTaskThreads (mr_env_t* env, TASK_TYPE_T task_type)
     switch (task_type)
     {
         case TASK_TYPE_MAP:
-            num_threads = env->num_map_threads;
+            num_threads = env->num_map_threads / (N_WORKERS - 1);
             break;
 
         case TASK_TYPE_REDUCE:
-            num_threads = env->num_reduce_threads;
+            num_threads = env->num_reduce_threads / (N_WORKERS - 1);
             break;
 
         case TASK_TYPE_MERGE:
