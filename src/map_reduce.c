@@ -515,10 +515,11 @@ env_init (map_reduce_args_t *args)
 		{
 			env->intermediate_vals[i] = (keyvals_arr_t *)shm_alloc (
 				env->num_reduce_tasks * sizeof (keyvals_arr_t));
+			memset(env->intermediate_vals[i], 0, env->num_reduce_tasks * sizeof (keyvals_arr_t));
+
 			for(t = 0; t < env->num_reduce_tasks; t++) {
 				pthread_spin_init(&env->intermediate_vals[i][t].lock, PTHREAD_PROCESS_SHARED);
 			}
-			memset(env->intermediate_vals[i], 0, env->num_reduce_tasks * sizeof (keyvals_arr_t));
 		}
 
 		mr_shared_env->intermediate_vals = env->intermediate_vals;
