@@ -87,7 +87,6 @@
 /* A key and a value pair. */
 typedef struct 
 {
-	pthread_spinlock_t lock;
     /* TODO add static assertion to make sure this fits in L2 line */
     union {
         struct {
@@ -103,7 +102,6 @@ typedef struct
 /* Array of keyvals_t. */
 typedef struct 
 {
-	pthread_spinlock_t lock;
     int len;
     int alloc_len;
     int pos;
@@ -194,6 +192,7 @@ typedef struct {
 	mr_barrier_t mr_barrier;
 	int num_map_tasks;
 	int num_reduce_tasks;
+	int thread_counter;
 } mr_shared_env_t;
 
 mr_shared_env_t *mr_shared_env;
@@ -266,6 +265,7 @@ map_reduce_init (int master)
 
 	mr_shared_env = shm_base + TQ_SIZE;
 	mr_shared_env->ready = 0;
+	mr_shared_env->thread_counter = 0;
 
 	/* This is, in a sense, the first "barrier".  It should probably be replaced
 	 * by an (even unreliable) interrupt at some point. */
@@ -406,7 +406,7 @@ static mr_env_t*
 env_init (map_reduce_args_t *args) 
 {
     mr_env_t    *env;
-    int         i, t;
+    int         i;
     int         num_procs;
 
     env = mem_malloc (sizeof (mr_env_t));
@@ -436,9 +436,11 @@ env_init (map_reduce_args_t *args)
     /* Determine the number of threads to schedule for each type of task. */
     env->num_map_threads = (args->num_map_threads > 0) ? 
         args->num_map_threads : num_procs;
+	env->num_map_threads *= (N_WORKERS - 1);
 
     env->num_reduce_threads = (args->num_reduce_threads > 0) ? 
         args->num_reduce_threads : num_procs;
+	env->num_reduce_threads *= (N_WORKERS - 1);
 
     env->num_merge_threads = (args->num_merge_threads > 0) ? 
         args->num_merge_threads : env->num_reduce_threads;
@@ -516,10 +518,6 @@ env_init (map_reduce_args_t *args)
 			env->intermediate_vals[i] = (keyvals_arr_t *)shm_alloc (
 				env->num_reduce_tasks * sizeof (keyvals_arr_t));
 			memset(env->intermediate_vals[i], 0, env->num_reduce_tasks * sizeof (keyvals_arr_t));
-
-			for(t = 0; t < env->num_reduce_tasks; t++) {
-				pthread_spin_init(&env->intermediate_vals[i][t].lock, PTHREAD_PROCESS_SHARED);
-			}
 		}
 
 		mr_shared_env->intermediate_vals = env->intermediate_vals;
@@ -530,10 +528,6 @@ env_init (map_reduce_args_t *args)
 				(keyval_arr_t *)shm_alloc (
 					env->num_reduce_tasks * sizeof (keyval_arr_t));
 			memset(env->final_vals, 0, env->num_reduce_tasks * sizeof(keyval_arr_t));
-
-			for(t = 0; t < env->num_reduce_tasks; t++) {
-				pthread_spin_init(&env->final_vals[t].lock, PTHREAD_PROCESS_SHARED);
-			}
 			
 			dprintf("tasks: %d (%ld)\n", env->num_reduce_tasks, sizeof(keyvals_arr_t));
 		}
@@ -543,10 +537,6 @@ env_init (map_reduce_args_t *args)
 				(keyval_arr_t *)shm_alloc (
 					env->num_reduce_threads * sizeof (keyval_arr_t));
 			memset(env->final_vals, 0, env->num_reduce_threads * sizeof(keyval_arr_t));
-
-			for(t = 0; t < env->num_reduce_threads; t++) {
-				pthread_spin_init(&env->final_vals[t].lock, PTHREAD_PROCESS_SHARED);
-			}
 
 			dprintf("threads: %d\n", env->num_reduce_threads);
 		}
@@ -666,7 +656,8 @@ start_workers (mr_env_t* env, thread_arg_t *th_arg)
 
         cpu = sched_thr_to_cpu (env->schedPolicies[task_type], thread_index + env->args->proc_offset);
         th_arg->cpu_id = cpu;
-        th_arg->thread_id = thread_index;
+		/* Globally unique thread ID */
+        th_arg->thread_id = __sync_fetch_and_add(&mr_shared_env->thread_counter, 1);
 
         th_arg_array[thread_index] = shm_alloc (sizeof (thread_arg_t));
         CHECK_ERROR (th_arg_array[thread_index] == NULL);
@@ -1524,8 +1515,6 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
     keyvals_t *insert_pos;
     val_t *new_vals;
 
-	pthread_spin_lock(&arr->lock);
-
     assert(arr->len <= arr->alloc_len);
     if (arr->len > 0)
         cmp = env->key_cmp(arr->arr[arr->len - 1].key, key);
@@ -1635,8 +1624,6 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
     insert_pos->vals->array[insert_pos->vals->next_insert_pos++] = val;
 
     insert_pos->len += 1;
-
-	pthread_spin_unlock(&arr->lock);
 }
 
 static inline void 
@@ -1646,8 +1633,6 @@ insert_keyval (mr_env_t* env, keyval_arr_t *arr, void *key, void *val)
     int cmp = 1;
 
     assert(arr->len <= arr->alloc_len);
-
-	pthread_spin_lock(&arr->lock);
 
     /* If array is full, double and copy over. */
     if (arr->len == arr->alloc_len)
@@ -1705,8 +1690,6 @@ insert_keyval (mr_env_t* env, keyval_arr_t *arr, void *key, void *val)
     }
 
     arr->len++;
-
-	pthread_spin_unlock(&arr->lock);
 }
 
 static inline void 
@@ -1948,7 +1931,6 @@ static void reduce (mr_env_t* env)
 static void merge (mr_env_t* env)
 {
     thread_arg_t   th_arg;
-	int i;
 
 	MASTER {
 		mem_memset (&th_arg, 0, sizeof (thread_arg_t));
@@ -1982,11 +1964,6 @@ static void merge (mr_env_t* env)
 			   depending on the value of num_merge_threads. */
 			env->merge_vals = (keyval_arr_t*) 
 				shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
-
-			for(i = 0; i < env->num_merge_threads; i++) {
-				pthread_spin_init(&env->merge_vals[i].lock, PTHREAD_PROCESS_SHARED);
-			}
-			
 			mr_shared_env->merge_vals = env->merge_vals;
 			
 			/* Run merge tasks and get merge values. */
