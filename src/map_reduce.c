@@ -183,15 +183,15 @@ typedef struct
 
 /* Shared mr state */
 typedef struct {
-	volatile int ready;
-	volatile keyvals_arr_t **intermediate_vals;
-	volatile keyval_arr_t *final_vals;
-	volatile keyval_arr_t *merge_vals;
-	volatile void *result;
-	volatile int result_len;
-	volatile mr_barrier_t mr_barrier;
-	volatile int num_map_tasks;
-	volatile int num_reduce_tasks;
+	int ready;
+	keyvals_arr_t **intermediate_vals;
+	keyval_arr_t *final_vals;
+	keyval_arr_t *merge_vals;
+	void *result;
+	int result_len;
+	mr_barrier_t mr_barrier;
+	int num_map_tasks;
+	int num_reduce_tasks;
 } mr_shared_env_t;
 
 mr_shared_env_t *mr_shared_env;
