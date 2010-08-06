@@ -183,7 +183,7 @@ typedef struct
 
 /* Shared mr state */
 typedef struct {
-	int ready;
+	volatile int ready;
 	keyvals_arr_t **intermediate_vals;
 	keyval_arr_t *final_vals;
 	keyval_arr_t *merge_vals;
