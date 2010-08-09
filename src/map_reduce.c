@@ -263,8 +263,8 @@ map_reduce_init (int *argc, char ***argv)
 	if(*argc < 2 ||
 	   (strcasecmp((*argv)[1], "master") && strcasecmp((*argv)[1], "worker"))) {
 		
-		perror("Must specify master or worker as first argument");
-		exit(1);
+		printf("Must specify master or worker as first argument.\n");
+		return(-1);
 	}
 	
 	/* Check whether we're the master or the worker */
