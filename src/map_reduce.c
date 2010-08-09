@@ -281,6 +281,7 @@ map_reduce_init (int *argc, char ***argv)
 	for(i = 1; i < *argc; i++) {
 		(*argv)[i] = (*argv)[i+1];
 	}
+	(*argv)[i] = NULL;
 
 	shm_init();
 	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), master_node);
