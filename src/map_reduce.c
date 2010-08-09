@@ -253,7 +253,7 @@ static void run_combiner (mr_env_t* env, int thread_idx);
 int 
 map_reduce_init (int *argc, char ***argv)
 {
-	
+	int i;
 	
     CHECK_ERROR (pthread_key_create (&tpool_key, NULL));
 
@@ -268,15 +268,19 @@ map_reduce_init (int *argc, char ***argv)
 	}
 	
 	/* Check whether we're the master or the worker */
-	if(strcasecmp((*argv)[1], "master")) {
+	if(strcasecmp((*argv)[1], "master") == 0) {
+		printf("map_reduce initializing as master");
 		master_node = 1;
-	} else if(strcasecmp((*argv)[1], "worker")) {
+	} else if(strcasecmp((*argv)[1], "worker") == 0) {
+		printf("map_reduce initializing as worker");
 		master_node = 0;
 	}
 
-	/* Strip off the first argument */
+	/* Strip off the argument */
 	*argc -= 1;
-	*argv += 1;
+	for(i = 1; i < *argc; i++) {
+		(*argv)[i] = (*argv)[i+1];
+	}
 
 	shm_init();
 	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), master_node);
