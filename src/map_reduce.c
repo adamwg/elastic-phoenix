@@ -269,10 +269,10 @@ map_reduce_init (int *argc, char ***argv)
 	
 	/* Check whether we're the master or the worker */
 	if(strcasecmp((*argv)[1], "master") == 0) {
-		printf("map_reduce initializing as master");
+		printf("map_reduce initializing as master\n");
 		master_node = 1;
 	} else if(strcasecmp((*argv)[1], "worker") == 0) {
-		printf("map_reduce initializing as worker");
+		printf("map_reduce initializing as worker\n");
 		master_node = 0;
 	}
 
