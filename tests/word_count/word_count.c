@@ -245,6 +245,8 @@ int main(int argc, char *argv[])
 
     get_time (&begin);
 
+    CHECK_ERROR (map_reduce_init (&argc, &argv));
+
     // Make sure a filename is specified
     if (argv[1] == NULL)
     {
@@ -285,8 +287,6 @@ int main(int argc, char *argv[])
     wc_data.fpos = 0;
     wc_data.flen = finfo.st_size;
     wc_data.fdata = fdata;
-
-    CHECK_ERROR (map_reduce_init (MASTER));
 
     // Setup map reduce args
     map_reduce_args_t map_reduce_args;

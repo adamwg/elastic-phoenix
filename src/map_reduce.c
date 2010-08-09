@@ -251,16 +251,35 @@ static void run_combiner (mr_env_t* env, int thread_idx);
 #endif
 
 int 
-map_reduce_init (int master)
+map_reduce_init (int *argc, char ***argv)
 {
+	
+	
     CHECK_ERROR (pthread_key_create (&tpool_key, NULL));
 
     CHECK_ERROR (pthread_setspecific (tpool_key, NULL));
 
-	master_node = master;
+	/* Check that we got a master or worker argument */
+	if(*argc < 2 ||
+	   (strcasecmp((*argv)[1], "master") && strcasecmp((*argv)[1], "worker"))) {
+		
+		perror("Must specify master or worker as first argument");
+		exit(1);
+	}
+	
+	/* Check whether we're the master or the worker */
+	if(strcasecmp((*argv)[1], "master")) {
+		master_node = 1;
+	} else if(strcasecmp((*argv)[1], "worker")) {
+		master_node = 0;
+	}
+
+	/* Strip off the first argument */
+	*argc -= 1;
+	*argv += 1;
 
 	shm_init();
-	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), master);
+	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), master_node);
 
 	mr_shared_env = shm_base + TQ_SIZE;
 	mr_shared_env->ready = 0;
