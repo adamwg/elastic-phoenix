@@ -191,6 +191,9 @@ int pca_mean_splitter(void *data_in, int req_units, map_args_t *out)
     }
     //dprintf("Returning %d rows starting at %d\n", out->length, map_data->start_row);
     pca_data->next_start_row += req_units;
+
+	out->actual_size = out->length * pca_data->unit_size;
+	
     return 1;
 }
 
@@ -387,6 +390,8 @@ int main(int argc, char **argv)
 
     get_time (&begin);
     
+    CHECK_ERROR (map_reduce_init (&argc, &argv));
+    
     parse_args(argc, argv);    
     
     // Allocate space for the matrix
@@ -403,8 +408,6 @@ int main(int argc, char **argv)
     pca_data.next_start_row = pca_data.next_cov_row = 0;
     pca_data.mean = NULL;
 
-    CHECK_ERROR (map_reduce_init ());
-    
     // Setup scheduler args for computing the mean
     memset(&map_reduce_args, 0, sizeof(map_reduce_args_t));
     map_reduce_args.task_data = &pca_data;

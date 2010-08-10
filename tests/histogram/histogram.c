@@ -206,6 +206,8 @@ int main(int argc, char *argv[]) {
 
     get_time (&begin);
 
+    CHECK_ERROR (map_reduce_init (&argc, &argv));
+
     // Make sure a filename is specified
     if (argv[1] == NULL)
     {
@@ -268,8 +270,6 @@ int main(int argc, char *argv[]) {
         green_keys[i] = 1000 + i;
         red_keys[i] = 2000 + i;
     }
-
-    CHECK_ERROR (map_reduce_init ());
 
     // Setup map reduce args
     map_reduce_args_t map_reduce_args;

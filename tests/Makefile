@@ -33,18 +33,17 @@ include $(HOME)/Defines.mk
 
 .PHONY: default all clean
 
-APPS := word_count
+APPS := \
+        histogram \
+        linear_regression \
+        pca \
+        string_match \
+        matrix_multiply \
+        word_count \
+#        kmeans \
 
-# APPS := \
-#         histogram \
-#         linear_regression \
-#         pca \
-#         string_match \
-#         kmeans \
-#         matrix_multiply \
-#         word_count \
-#         intervm \
-#
+# kmeans does something stupid in the splitter, so it's not amenable to conversion.
+
 default: all
 
 all: 

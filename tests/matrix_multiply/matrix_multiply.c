@@ -118,6 +118,7 @@ int matrixmult_splitter(void *data_in, int req_units, map_args_t *out)
     int available_rows = data->matrix_len - data->row_num;
     out->length = (req_units < available_rows)? req_units:available_rows;
     out->data = data_out;
+	out->actual_size = out->length * data->unit_size;
 
     data->row_num += out->length;
     /* dprintf("Allocated rows is %d\n",out->length); */
@@ -200,6 +201,8 @@ int main(int argc, char *argv[]) {
 
     get_time (&begin);
     
+    CHECK_ERROR (map_reduce_init (&argc, &argv));
+
     srand( (unsigned)time( NULL ) );
 
     // Make sure a filename is specified
@@ -313,8 +316,6 @@ int main(int argc, char *argv[]) {
     
     mm_data.matrix_A = matrix_A_ptr = ((int *)fdata_A);
     mm_data.matrix_B = matrix_B_ptr = ((int *)fdata_B);
-
-    CHECK_ERROR (map_reduce_init ());
 
     // Setup map reduce args
     map_reduce_args_t map_reduce_args;

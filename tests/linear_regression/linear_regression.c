@@ -173,6 +173,8 @@ int main(int argc, char *argv[]) {
 
     get_time (&begin);
 
+    CHECK_ERROR (map_reduce_init (&argc, &argv));
+
     // Make sure a filename is specified
     if (argv[1] == NULL)
     {
@@ -201,8 +203,6 @@ int main(int argc, char *argv[]) {
     ret = read (fd, fdata, finfo.st_size);
     CHECK_ERROR (ret != finfo.st_size);
 #endif
-
-    CHECK_ERROR (map_reduce_init ());
 
     // Setup scheduler args
     map_reduce_args_t map_reduce_args;
