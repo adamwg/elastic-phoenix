@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -75,6 +76,7 @@ void *shm_alloc(size_t size) {
 
 	/* Out of chunks. */
 	if(i == MAX_CHUNKS) {
+		errno = ENOMEM;
 		return NULL;
 	}
 
@@ -109,6 +111,7 @@ void *shm_alloc(size_t size) {
 		for(k = 1; k <= coll; k++) {
 			blkmap[j - coll] = 0;
 		}
+		errno = ENOMEM;
 		return NULL;
 	}
 
@@ -141,7 +144,10 @@ void *shm_realloc(void *ptr, size_t sz) {
 
 	/* Allocate a new chunk */
 	n = shm_alloc(sz);
-	CHECK_ERROR(n == NULL);
+	if(n == NULL) {
+		errno = ENOMEM;
+		return NULL;
+	}
 
 	/* Copy over the data and free the old chunk */
 	/* NOTE: we could temporarily copy the data into local memory, then free,
