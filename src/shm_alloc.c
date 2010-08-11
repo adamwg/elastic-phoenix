@@ -21,7 +21,7 @@
 /* The number of blocks required for a given size */
 #define BLOCKS_REQ(sz) ((sz / BLK_SIZE) + 1)
 /* The maximum number of chunks we can allocate */
-#define MAX_CHUNKS     32768
+#define MAX_CHUNKS     65536
 /* The block index of an address */
 #define BLK_INDEX(p)   (p - blocks) / BLK_SIZE
 
