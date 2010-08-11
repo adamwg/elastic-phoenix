@@ -63,6 +63,10 @@ void *shm_alloc(size_t size) {
 	int req = BLOCKS_REQ(size);
 	int i, j, k, coll;
 
+#ifdef SHM_DEBUG
+	printf("Allocating shm block of size %d ... ", size);
+#endif
+	
 	/* Find a free chunk structure */
 	for(i = 0; i < MAX_CHUNKS; i++) {
 		/* Atomically check that size is 0 and set it to the new size */
@@ -76,6 +80,9 @@ void *shm_alloc(size_t size) {
 
 	/* Out of chunks. */
 	if(i == MAX_CHUNKS) {
+#ifdef SHM_DEBUG
+		printf("Out of chunks\n");
+#endif
 		errno = ENOMEM;
 		return NULL;
 	}
@@ -108,12 +115,20 @@ void *shm_alloc(size_t size) {
 
 	/* Out of space. */
 	if(coll < req) {
+#ifdef SHM_DEBUG
+		printf("Out of space\n");
+#endif
+		
 		for(k = 1; k <= coll; k++) {
 			blkmap[j - coll] = 0;
 		}
 		errno = ENOMEM;
 		return NULL;
 	}
+
+#ifdef SHM_DEBUG
+	printf("OK\n");
+#endif
 
 	return chunklist[i].start;
 }
