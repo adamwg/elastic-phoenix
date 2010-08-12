@@ -228,7 +228,8 @@ void pca_mean_map(map_args_t *args)
         mean = sum / num_cols;
         emit_intermediate((void *)&matrix[i * num_cols], (void *)mean, sizeof(int *));
     }
-    
+
+	// MODIFIED: shouldn't try to free shm data. --awg
 //    free(data);
 }
 
