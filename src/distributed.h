@@ -20,9 +20,9 @@
 
 typedef struct {
 	pthread_spinlock_t lock;
-	int count;
-	int alldone;
-	int exited;
+	volatile int count;
+	volatile int alldone;
+	volatile int exited;
 } mr_barrier_t;
 
 void *shm_base;

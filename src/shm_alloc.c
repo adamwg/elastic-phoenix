@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -20,7 +21,7 @@
 /* The number of blocks required for a given size */
 #define BLOCKS_REQ(sz) ((sz / BLK_SIZE) + 1)
 /* The maximum number of chunks we can allocate */
-#define MAX_CHUNKS     4096
+#define MAX_CHUNKS     (1024*1024)
 /* The block index of an address */
 #define BLK_INDEX(p)   (p - blocks) / BLK_SIZE
 
@@ -62,6 +63,10 @@ void *shm_alloc(size_t size) {
 	int req = BLOCKS_REQ(size);
 	int i, j, k, coll;
 
+#ifdef SHM_DEBUG
+	printf("Allocating shm block of size %d ... ", size);
+#endif
+	
 	/* Find a free chunk structure */
 	for(i = 0; i < MAX_CHUNKS; i++) {
 		/* Atomically check that size is 0 and set it to the new size */
@@ -75,6 +80,10 @@ void *shm_alloc(size_t size) {
 
 	/* Out of chunks. */
 	if(i == MAX_CHUNKS) {
+#ifdef SHM_DEBUG
+		printf("Out of chunks\n");
+#endif
+		errno = ENOMEM;
 		return NULL;
 	}
 
@@ -106,11 +115,20 @@ void *shm_alloc(size_t size) {
 
 	/* Out of space. */
 	if(coll < req) {
+#ifdef SHM_DEBUG
+		printf("Out of space\n");
+#endif
+		
 		for(k = 1; k <= coll; k++) {
 			blkmap[j - coll] = 0;
 		}
+		errno = ENOMEM;
 		return NULL;
 	}
+
+#ifdef SHM_DEBUG
+	printf("OK\n");
+#endif
 
 	return chunklist[i].start;
 }
@@ -141,7 +159,10 @@ void *shm_realloc(void *ptr, size_t sz) {
 
 	/* Allocate a new chunk */
 	n = shm_alloc(sz);
-	CHECK_ERROR(n == NULL);
+	if(n == NULL) {
+		errno = ENOMEM;
+		return NULL;
+	}
 
 	/* Copy over the data and free the old chunk */
 	/* NOTE: we could temporarily copy the data into local memory, then free,

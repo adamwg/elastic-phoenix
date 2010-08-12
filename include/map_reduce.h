@@ -170,7 +170,7 @@ typedef struct
 /* Runtime defined functions. */
 
 /* MapReduce initialization function. Called once per process. */
-int map_reduce_init (int master);
+int map_reduce_init (int *argc, char ***argv);
 
 /* MapReduce finalization function. Called once per process. */
 int map_reduce_finalize ();

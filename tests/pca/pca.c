@@ -191,6 +191,9 @@ int pca_mean_splitter(void *data_in, int req_units, map_args_t *out)
     }
     //dprintf("Returning %d rows starting at %d\n", out->length, map_data->start_row);
     pca_data->next_start_row += req_units;
+
+	out->actual_size = out->length * pca_data->unit_size;
+	
     return 1;
 }
 
@@ -225,8 +228,9 @@ void pca_mean_map(map_args_t *args)
         mean = sum / num_cols;
         emit_intermediate((void *)&matrix[i * num_cols], (void *)mean, sizeof(int *));
     }
-    
-    free(data);
+
+	// MODIFIED: shouldn't try to free shm data. --awg
+//    free(data);
 }
 
 /** mycovcmp()
@@ -298,6 +302,8 @@ int pca_cov_splitter(void *data_in, int req_units, map_args_t *out)
     cov_data->matrix = pca_data->matrix;
     cov_data->mean = pca_data->mean;
     cov_data->cov_locs = cov_locs;
+
+	out->actual_size = sizeof(pca_data_t);
     
 #if 0
     dprintf("Returning %d elems starting <%d,%d> till <%d,%d>\n", 
@@ -387,6 +393,8 @@ int main(int argc, char **argv)
 
     get_time (&begin);
     
+    CHECK_ERROR (map_reduce_init (&argc, &argv));
+    
     parse_args(argc, argv);    
     
     // Allocate space for the matrix
@@ -403,8 +411,6 @@ int main(int argc, char **argv)
     pca_data.next_start_row = pca_data.next_cov_row = 0;
     pca_data.mean = NULL;
 
-    CHECK_ERROR (map_reduce_init ());
-    
     // Setup scheduler args for computing the mean
     memset(&map_reduce_args, 0, sizeof(map_reduce_args_t));
     map_reduce_args.task_data = &pca_data;

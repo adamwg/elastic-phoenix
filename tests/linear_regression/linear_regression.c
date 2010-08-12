@@ -122,10 +122,10 @@ static int linear_regression_partition(int reduce_tasks, void* key, int key_size
 
 /** linear_regression_reduce()
  *
- */
+ * MODIFIED: no reason to calloc a long long when we can just cast it.  --awg
+*/
 static void linear_regression_reduce(void *key_in, iterator_t *itr)
 {
-    long long *sumptr = CALLOC(sizeof(long long), 1);
     register long long sum = 0;
     long long *val;
 
@@ -137,8 +137,7 @@ static void linear_regression_reduce(void *key_in, iterator_t *itr)
         free (val);
     }
 
-    *sumptr = sum;
-    emit(key_in, (void *)sumptr);
+    emit(key_in, (void *)sum);
 }
 
 static void *linear_regression_combiner (iterator_t *itr)
@@ -173,6 +172,8 @@ int main(int argc, char *argv[]) {
 
     get_time (&begin);
 
+    CHECK_ERROR (map_reduce_init (&argc, &argv));
+
     // Make sure a filename is specified
     if (argv[1] == NULL)
     {
@@ -201,8 +202,6 @@ int main(int argc, char *argv[]) {
     ret = read (fd, fdata, finfo.st_size);
     CHECK_ERROR (ret != finfo.st_size);
 #endif
-
-    CHECK_ERROR (map_reduce_init ());
 
     // Setup scheduler args
     map_reduce_args_t map_reduce_args;
@@ -250,31 +249,31 @@ int main(int argc, char *argv[]) {
     double a, b, xbar, ybar, r2;
     long long SX_ll = 0, SY_ll = 0, SXX_ll = 0, SYY_ll = 0, SXY_ll = 0;
     // ADD UP RESULTS
+	// MODIFIED: no longer need to free things that aren't ours. --awg
     for (i = 0; i < final_vals.length; i++)
     {
         keyval_t * curr = &final_vals.data[i];
         switch ((intptr_t)curr->key)
         {
         case KEY_SX:
-             SX_ll = (*(long long*)curr->val);
+             SX_ll = ((long long)curr->val);
              break;
         case KEY_SY:
-             SY_ll = (*(long long*)curr->val);
+             SY_ll = ((long long)curr->val);
              break;
         case KEY_SXX:
-             SXX_ll = (*(long long*)curr->val);
+             SXX_ll = ((long long)curr->val);
              break;
         case KEY_SYY:
-             SYY_ll = (*(long long*)curr->val);
+             SYY_ll = ((long long)curr->val);
              break;
         case KEY_SXY:
-             SXY_ll = (*(long long*)curr->val);
+             SXY_ll = ((long long)curr->val);
              break;
         default:
              // INVALID KEY
              CHECK_ERROR(1);
         }
-        free(curr->val);
     }
 
     double SX = (double)SX_ll;

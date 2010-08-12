@@ -168,6 +168,7 @@ int string_match_splitter(void *data_in, int req_units, map_args_t *out)
 
     out->length = counter - data->bytes_comp;
     data->bytes_comp = counter;
+	out->actual_size = out->length;
 
     return 1;
 }
@@ -233,6 +234,8 @@ int main(int argc, char *argv[]) {
 
     get_time (&begin);
 
+    CHECK_ERROR (map_reduce_init (&argc, &argv));
+
     if (argv[1] == NULL)
     {
         printf("USAGE: %s <keys filename>\n", argv[0]);
@@ -274,8 +277,6 @@ int main(int argc, char *argv[]) {
     str_data.bytes_comp = 0;
     str_data.keys_file  = ((char *)fdata_keys);
     str_data.encrypt_file  = NULL;
-
-    CHECK_ERROR (map_reduce_init ());
 
     // Setup scheduler args
     map_reduce_args_t map_reduce_args;
