@@ -16,9 +16,11 @@ taskQ_t *the_tq = NULL;
 
 taskQ_t *tq_init(int num_threads) {
 	the_tq = shm_base;
-	static_lock_alloc((mr_lock_t)&the_tq->lock);
-	the_tq->head = 0;
-	the_tq->tail = 0;
+	MASTER {
+		static_lock_alloc((mr_lock_t)&the_tq->lock);
+		the_tq->head = 0;
+		the_tq->tail = 0;
+	}
 
 	return the_tq;
 }
