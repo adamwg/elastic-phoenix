@@ -37,12 +37,13 @@ APPS := \
         histogram \
         linear_regression \
         pca \
-        string_match \
         matrix_multiply \
         word_count \
+#        string_match \
 #        kmeans \
 
-# kmeans does something stupid in the splitter, so it's not amenable to conversion.
+# kmeans and string_match do something stupid in the splitter, 
+# so they're not amenable to conversion.
 
 default: all
 
