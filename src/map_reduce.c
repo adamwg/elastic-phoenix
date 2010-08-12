@@ -1009,7 +1009,7 @@ static bool reduce_worker_do_next_task (
                 vals = curr_key_val->vals;
                 while (vals != NULL) {
                     next = vals->next_val;
-                    shm_free (vals);
+//                    shm_free (vals);
                     vals = next;
                 }
             }
