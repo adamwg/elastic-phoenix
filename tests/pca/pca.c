@@ -302,6 +302,8 @@ int pca_cov_splitter(void *data_in, int req_units, map_args_t *out)
     cov_data->matrix = pca_data->matrix;
     cov_data->mean = pca_data->mean;
     cov_data->cov_locs = cov_locs;
+
+	out->actual_size = sizeof(pca_data_t);
     
 #if 0
     dprintf("Returning %d elems starting <%d,%d> till <%d,%d>\n", 
