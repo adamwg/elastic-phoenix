@@ -29,6 +29,7 @@ void barrier_init(mr_barrier_t *bar) {
 	bar->exited = 0;
 }
 
+/* NOTE: There are N_WORKERS + 1 processes reaching this barrier. */
 void barrier(mr_barrier_t *bar) {
 	/* Lock */
 	pthread_spin_lock(&bar->lock);
@@ -36,18 +37,18 @@ void barrier(mr_barrier_t *bar) {
 	/* Increment the count */
 	bar->count += 1;
 
-	if(bar->count < N_WORKERS) {
+	if(bar->count <= N_WORKERS) {
 		/* If not everyone is done, unlock and wait */
 		pthread_spin_unlock(&bar->lock);
 		while(!bar->alldone);
 		/* When we're all done, atomically increment the extied counter */
 		__sync_fetch_and_add(&bar->exited, 1);
 		return;
-	} else if(bar->count == N_WORKERS) {
+	} else if(bar->count == N_WORKERS + 1) {
 		/* If we're the last one to get here, set the alldone flag */
 		bar->alldone = 1;
 		/* Wait for everyone else to exit */
-		while(bar->exited < N_WORKERS - 1);
+		while(bar->exited < N_WORKERS);
 
 		/* Reset the barrier */
 		bar->count = 0;

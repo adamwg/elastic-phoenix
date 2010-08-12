@@ -5,9 +5,6 @@
 
 #include "synch.h"
 
-/* This is a misnomer - it's actually the number of processes (master + workers) */
-#define N_WORKERS 3
-
 /* The Nahanni device */
 #define SHM_DEV        "/dev/uio0"
 /* The size of the shared memory, in bytes */
@@ -31,6 +28,10 @@ void shm_init();
 void barrier_init(mr_barrier_t *bar);
 void barrier(mr_barrier_t *bar);
 
+/* 1 if this is the master process */
 int master_node;
+
+/* The number of worker processes - set in map_reduce_init */
+int N_WORKERS;
 
 #endif /* DISTRIBUTED_H_ */
