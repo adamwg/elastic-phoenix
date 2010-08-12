@@ -229,7 +229,7 @@ void pca_mean_map(map_args_t *args)
         emit_intermediate((void *)&matrix[i * num_cols], (void *)mean, sizeof(int *));
     }
     
-    free(data);
+//    free(data);
 }
 
 /** mycovcmp()
