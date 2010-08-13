@@ -1610,6 +1610,7 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
                 arr->arr = (keyvals_t *)
                     shm_alloc (arr->alloc_len * sizeof (keyvals_t));
 				CHECK_ERROR(arr->arr == NULL);
+				memset(arr->arr, 0, arr->alloc_len * sizeof(keyvals_t));
             }
             else
             {
@@ -1637,6 +1638,7 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
         new_vals = shm_alloc 
             (sizeof (val_t) + DEFAULT_VALS_ARR_LEN * sizeof (void *));
         assert (new_vals);
+		memset(new_vals, 0, sizeof (val_t) + DEFAULT_VALS_ARR_LEN * sizeof (void *));
 
         new_vals->size = DEFAULT_VALS_ARR_LEN;
         new_vals->next_insert_pos = 0;
@@ -1669,6 +1671,7 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
             alloc_size = insert_pos->vals->size * 2;
             new_vals = shm_alloc (sizeof (val_t) + alloc_size * sizeof (void *));
             assert (new_vals);
+			memset(new_vals, 0, sizeof (val_t) + alloc_size * sizeof (void *));
 
             new_vals->size = alloc_size;
             new_vals->next_insert_pos = 0;
@@ -1701,6 +1704,7 @@ insert_keyval (mr_env_t* env, keyval_arr_t *arr, void *key, void *val)
             arr->alloc_len = DEFAULT_KEYVAL_ARR_LEN;
             arr->arr = (keyval_t*)shm_alloc(arr->alloc_len * sizeof(keyval_t));
 			CHECK_ERROR(arr->arr == NULL);
+			memset(arr->arr, 0, arr->alloc_len * sizeof(keyval_t));
         }
         else
         {
@@ -1776,6 +1780,7 @@ merge_results (mr_env_t* env, keyval_arr_t *vals, int length)
     env->merge_vals[g_curr_thread].arr = (keyval_t *)
         shm_alloc(sizeof(keyval_t) * total_num_keys);
 	CHECK_ERROR(env->merge_vals[g_curr_thread].arr == NULL);
+	memset(env->merge_vals[g_curr_thread].arr, 0, sizeof(keyval_t) * total_num_keys);
 
     for (data_idx = 0; data_idx < total_num_keys; data_idx++) {
         /* For each keyval_t. */
@@ -2035,6 +2040,7 @@ static void merge (mr_env_t* env)
 			env->merge_vals = (keyval_arr_t*) 
 				shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
 			CHECK_ERROR(env->merge_vals == NULL);
+			memset(env->merge_vals, 0, env->num_merge_threads * sizeof(keyval_arr_t));
 
 			mr_shared_env->merge_vals = env->merge_vals;
 			
