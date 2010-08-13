@@ -618,6 +618,7 @@ void env_print (mr_env_t* env)
     printf (OUT_PREFIX "g_num_map_threads = %u\n", env->g_num_map_threads);
     printf (OUT_PREFIX "g_num_reduce_threads = %u\n", env->g_num_reduce_threads);
     printf (OUT_PREFIX "num_merge_threads = %u\n", env->num_merge_threads);
+	printf (OUT_PREFIX "worker_id = %d\n", env->worker_id);
 }
 
 /**
