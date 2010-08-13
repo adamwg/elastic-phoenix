@@ -26,13 +26,14 @@ taskQ_t *tq_init(int num_threads) {
 }
 
 int tq_enqueue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
-	/* Full */
-	if((tq->head + 1) % N_TASKS == tq->tail) {
-		return -1;
-	}
-
 	/* Acquire lock */
 	lock_acquire((mr_lock_t)&tq->lock);
+
+	/* Full */
+	if((tq->head + 1) % N_TASKS == tq->tail) {
+		lock_release((mr_lock_t)&tq->lock);
+		return -1;
+	}
 
 	/* Copy in the data */
 	mem_memcpy(&tq->tasks[tq->head], task, sizeof(task_t));
@@ -58,13 +59,14 @@ int tq_enqueue_seq (taskQ_t* tq, task_t *task, int lgrp) {
 }
 
 int tq_dequeue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
-	/* Empty */
-	if(tq->head == tq->tail) {
-		return 0;
-	}
-
 	/* Acquire lock */
 	lock_acquire((mr_lock_t)&tq->lock);
+
+	/* Empty */
+	if(tq->head == tq->tail) {
+		lock_release((mr_lock_t)&tq->lock);
+		return 0;
+	}
 
 	/* Grab the data */
 	mem_memcpy(task, &tq->tasks[tq->tail], sizeof(task_t));
