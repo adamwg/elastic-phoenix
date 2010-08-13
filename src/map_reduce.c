@@ -1497,7 +1497,7 @@ emit_intermediate (void *key, void *val, int key_size)
     if (oneOutputQueuePerMapTask)
         curr_task = env->tinfo[curr_thread].curr_task;
 	else
-        curr_task = curr_thread;
+        curr_task = g_curr_thread;
    
     int reduce_pos = env->partition (env->num_reduce_tasks, key, key_size);
     reduce_pos %= env->num_reduce_tasks;
