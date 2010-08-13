@@ -17,7 +17,7 @@
 /* Allocate memory in 4k blocks */
 #define BLK_SIZE       4096
 /* The number of blocks */
-#define N_BLOCKS       (SHM_SIZE / BLK_SIZE)
+#define N_BLOCKS       ((SHM_SIZE / BLK_SIZE) - 1)
 /* The number of blocks required for a given size */
 #define BLOCKS_REQ(sz) ((sz / BLK_SIZE) + 1)
 /* The maximum number of chunks we can allocate */
