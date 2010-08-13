@@ -1126,14 +1126,17 @@ merge_worker (void *args)
 
     env->tinfo[thread_index].tid = pthread_self();
 
+	/* NOTE: this doesn't work in distributed mode, since there are
+	 * g_map_threads mergers, and only l_map_threads CPUs. --awg */
     /* Bind thread.
-       Spread out the merge workers as much as possible. */
+       Spread out the merge workers as much as possible.
     if (env->oneOutputQueuePerReduceTask)
         cpu = th_arg->cpu_id * (1 << (th_arg->merge_round - 1));
     else
         cpu = th_arg->cpu_id * (1 << th_arg->merge_round);
-
+        
     CHECK_ERROR (proc_bind_thread (cpu) != 0);
+	*/
 
     CHECK_ERROR (pthread_setspecific (env_key, env));
 
