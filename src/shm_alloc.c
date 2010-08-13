@@ -14,10 +14,8 @@
 
 /* The Nahanni device */
 #define SHM_DEV        "/dev/uio0"
-/* Allocate memory in 4k blocks */
-#define BLK_SIZE       4096
 /* The number of blocks */
-#define N_BLOCKS       ((SHM_SIZE / BLK_SIZE) - 1)
+#define N_BLOCKS       (256*1024)
 /* The number of blocks required for a given size */
 #define BLOCKS_REQ(sz) ((sz / BLK_SIZE) + 1)
 /* The maximum number of chunks we can allocate */
@@ -34,6 +32,8 @@ static void *blocks;
 
 /* The size of the shared memory, in bytes */
 static int SHM_SIZE;
+/* Minimum allocation size */
+static int BLK_SIZE;
 
 typedef struct {
 	/* The size of this allocated chunk */
@@ -46,11 +46,12 @@ static chunk_t *chunklist;
 
 void shm_alloc_init(void *base, size_t size, int master) {
 	/* Set up the allocation constants */
-	SHM_SIZE = size;
 	alloc_base = base;
 	blkmap = alloc_base;
 	chunklist  = (chunk_t *)(blkmap + N_BLOCKS);
 	blocks = (char *)((void *)chunklist + MAX_CHUNKS*sizeof(chunk_t));
+	SHM_SIZE = size - (blocks - alloc_base);
+	BLK_SIZE = SHM_SIZE / N_BLOCKS;
 
 	/* If we've declared ourselves the "master" then clear everything out */
 	if(master) {
