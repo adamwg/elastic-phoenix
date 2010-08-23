@@ -123,7 +123,7 @@ tryagain:
     // Allocate some memory for the data
 	out->length = req_units * data->unit_size;
     out->data = mem->alloc(out->length + 1);
-	((char *)out->data)[out->length] = 0;
+	assert(out->data != NULL);
 	// Read the data
 	out->length = read(data->fd, out->data, out->length);
 	data->fpos += out->length;
