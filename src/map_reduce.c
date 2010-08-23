@@ -237,7 +237,7 @@ static inline void insert_keyval (
 static inline void insert_keyval_merged (
     mr_env_t* env, keyvals_arr_t *, void *, void *);
 
-static int array_splitter (void *, int, map_args_t *);
+static int array_splitter (void *, int, map_args_t *, splitter_mem_ops_t *);
 static void identity_reduce (void *, iterator_t *itr);
 static inline void merge_results (mr_env_t* env, keyval_arr_t*, int);
 
@@ -1119,7 +1119,6 @@ merge_worker (void *args)
     thread_arg_t    *th_arg = (thread_arg_t *)args;
     int             thread_index = th_arg->thread_id;
     mr_env_t        *env = th_arg->env;
-    int             cpu;
 #ifdef TIMING
     uintptr_t       work_time = 0;
 #endif
@@ -1197,18 +1196,16 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
     map_args_t          args;
     task_queued         *task = NULL;
 
+	static splitter_mem_ops_t mops = { .alloc = &shm_alloc, .free = &shm_free };
+
     /* split until complete */
     cur_task_id = 0;
-    while (env->splitter (env->args->task_data, env->chunk_size, &args))
+    while (env->splitter (env->args->task_data, env->chunk_size, &args, &mops))
     {
         task = (task_queued *)mem_malloc (sizeof (task_queued));
         task->task.id = cur_task_id;
+		task->task.data = args.data;
         task->task.len = (uint64_t)args.length;
-		/* This is an ugly API change, but it's the only way... --awg */
-		task->task.data = (uint64_t)shm_alloc(args.actual_size);
-		CHECK_ERROR((void *)task->task.data == NULL);
-		mem_memcpy((void *)task->task.data, args.data, args.actual_size);
-
         queue_push_back (q, &task->queue_elem);
 
         ++cur_task_id;
@@ -1870,9 +1867,14 @@ getCurrThreadIndex (TASK_TYPE_T task_type)
 
 /** array_splitter()
  *
- */
+ * Note: In the modified API for shared memory, this function should not be
+ * used on mmaped files.  If your data is already (really) in memory then it's
+ * no slower than before, but if your data is in a file, it's better to
+ * provide a splitter that reads directly into shmem (see wordcount_splitter
+ * for an example).
+*/
 int 
-array_splitter (void *data_in, int req_units, map_args_t *out)
+array_splitter (void *data_in, int req_units, map_args_t *out, splitter_mem_ops_t *mem)
 {
     assert(out != NULL);
 
@@ -1888,17 +1890,19 @@ array_splitter (void *data_in, int req_units, map_args_t *out)
     if (env->splitter_pos >= data_units)
         return 0;
 
-    /* Set the start of the next data. */
-    out->data = ((void *)env->args->task_data) + env->splitter_pos*unit_size;
-
-    /* Determine the nominal length. */
+	/* Determine the length. */
     if (env->splitter_pos + req_units > data_units)
-        out->length = data_units - env->splitter_pos;
+        out->length = (data_units - env->splitter_pos) * unit_size;
     else
-        out->length = req_units;
+        out->length = req_units * unit_size;
+
+    /* Set the start of the next data. */
+    out->data = mem->alloc(out->length);
+	mem_memcpy(out->data,
+			   ((void *)env->args->task_data) + env->splitter_pos*unit_size,
+			   out->length);
 
     env->splitter_pos += out->length;
-	out->actual_size = out->length * unit_size;
 
     /* Return true since the out data is valid. */
     return 1;

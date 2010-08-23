@@ -94,7 +94,11 @@ typedef void *(*combiner_t)(iterator_t *itr);
  * map_args_t pointer. The result is stored in map_args_t. The splitter
  * should return 1 if the result is valid or 0 if there is no more data.
  */
-typedef int (*splitter_t)(void *, int, map_args_t *);
+typedef struct {
+	void *(*alloc)(size_t);
+	void (*free)(void *);
+} splitter_mem_ops_t;
+typedef int (*splitter_t)(void *, int, map_args_t *, splitter_mem_ops_t *);
 
 /* Locator function takes in a pointer to map_args_t, and returns
  * the memory address where this map task would be heavily accessing.

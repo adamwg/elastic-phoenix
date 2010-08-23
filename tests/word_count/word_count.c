@@ -45,9 +45,9 @@
 #define DEFAULT_DISP_NUM 10
 
 typedef struct {
-    int fpos;
+	off_t fpos;
     off_t flen;
-    char *fdata;
+    int fd;
     int unit_size;
 } wc_data_t;
 
@@ -99,38 +99,55 @@ int mykeyvalcmp(const void *v1, const void *v2)
 /** wordcount_splitter()
  *  Memory map the file and divide file on a word border i.e. a space.
  */
-int wordcount_splitter(void *data_in, int req_units, map_args_t *out)
+int wordcount_splitter(void *data_in, int req_units, map_args_t *out,
+					   splitter_mem_ops_t *mem)
 {
-    wc_data_t * data = (wc_data_t *)data_in; 
+    wc_data_t * data = (wc_data_t *)data_in;
+	char *c;
+	int less;
     
     assert(data_in);
     assert(out);
     
+	assert(data->fpos >= 0);
     assert(data->flen >= 0);
-    assert(data->fdata);
+    assert(data->fd > 0);
     assert(req_units);
-    assert(data->fpos >= 0);
 
-    // End of file reached, return FALSE for no more data
-    if (data->fpos >= data->flen) return 0;
+	// At the end of the file.
+	if(data->fpos >= data->flen) {
+		return(0);
+	}
 
-    // Set the start of the next data
-    out->data = (void *)&data->fdata[data->fpos];
+tryagain:
+    // Allocate some memory for the data
+	out->length = req_units * data->unit_size;
+    out->data = mem->alloc(out->length + 1);
+	((char *)out->data)[out->length] = 0;
+	// Read the data
+	out->length = read(data->fd, out->data, out->length);
+	data->fpos += out->length;
     
-    // Determine the nominal length
-    out->length = req_units * data->unit_size;
-    
-    if (data->fpos + out->length > data->flen)
-        out->length = data->flen - data->fpos;
-    
-    // Set the length to end at a space
-    for (data->fpos += (long)out->length;
-          data->fpos < data->flen && 
-          data->fdata[data->fpos] != ' ' && data->fdata[data->fpos] != '\t' &&
-          data->fdata[data->fpos] != '\r' && data->fdata[data->fpos] != '\n';
-          data->fpos++, out->length++);
+    // Find the last space in the read data.
+	for(c = &((char *)out->data)[out->length - 1], less = 0;
+		data->fpos < data->flen &&
+			*c != ' ' && *c != '\t' &&
+			*c != '\r' && *c != '\n';
+		c--, less--);
 
-	out->actual_size = out->length;
+	// Seek back to where the space was.
+	if(less < 0) {
+		lseek(data->fd, less, SEEK_CUR);
+		data->fpos += less;
+	}
+
+	// If we just read one big long word, then change the req_units and go back
+	// to the top... ugly, but it will work.
+	if(out->length == 0) {
+		mem->free(out->data);
+		req_units++;
+		goto tryagain;
+	}
 	
     return 1;
 }
@@ -236,7 +253,6 @@ int main(int argc, char *argv[])
     final_data_t wc_vals;
     int i;
     int fd;
-    char * fdata;
     int disp_num;
     struct stat finfo;
     char * fname, * disp_num_str;
@@ -263,19 +279,6 @@ int main(int argc, char *argv[])
     CHECK_ERROR((fd = open(fname, O_RDONLY)) < 0);
     // Get the file info (for file length)
     CHECK_ERROR(fstat(fd, &finfo) < 0);
-#ifndef NO_MMAP
-    // Memory map the file
-    CHECK_ERROR((fdata = mmap(0, finfo.st_size + 1, 
-      PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0)) == NULL);
-#else
-    int ret;
-
-    fdata = (char *)malloc (finfo.st_size);
-    CHECK_ERROR (fdata == NULL);
-
-    ret = read (fd, fdata, finfo.st_size);
-    CHECK_ERROR (ret != finfo.st_size);
-#endif
 
     // Get the number of results to display
     CHECK_ERROR((disp_num = (disp_num_str == NULL) ? 
@@ -286,7 +289,7 @@ int main(int argc, char *argv[])
     wc_data.unit_size = 5; // approx 5 bytes per word
     wc_data.fpos = 0;
     wc_data.flen = finfo.st_size;
-    wc_data.fdata = fdata;
+    wc_data.fd = fd;
 
     // Setup map reduce args
     map_reduce_args_t map_reduce_args;
@@ -352,11 +355,6 @@ int main(int argc, char *argv[])
 
     free(wc_vals.data);
 
-#ifndef NO_MMAP
-    CHECK_ERROR(munmap(fdata, finfo.st_size + 1) < 0);
-#else
-    free (fdata);
-#endif
     CHECK_ERROR(close(fd) < 0);
 
     get_time (&end);
