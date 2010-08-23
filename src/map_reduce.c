@@ -1880,19 +1880,17 @@ array_splitter (void *data_in, int req_units, map_args_t *out, splitter_mem_ops_
 
     mr_env_t    *env;
     int         unit_size;
-    int         data_units;
 
     env = get_env();
     unit_size = env->args->unit_size;
-    data_units = env->args->data_size / unit_size;
 
     /* End of data reached, return FALSE. */
-    if (env->splitter_pos >= data_units)
+    if (env->splitter_pos >= env->args->data_size)
         return 0;
 
 	/* Determine the length. */
-    if (env->splitter_pos + req_units > data_units)
-        out->length = (data_units - env->splitter_pos) * unit_size;
+    if (env->splitter_pos + req_units > env->args->data_size)
+        out->length = env->args->data_size - env->splitter_pos;
     else
         out->length = req_units * unit_size;
 
