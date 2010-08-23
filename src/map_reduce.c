@@ -1200,6 +1200,7 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
 
     /* split until complete */
     cur_task_id = 0;
+	env->splitter_pos = 0;
     while (env->splitter (env->args->task_data, env->chunk_size, &args, &mops))
     {
         task = (task_queued *)mem_malloc (sizeof (task_queued));
@@ -1898,7 +1899,7 @@ array_splitter (void *data_in, int req_units, map_args_t *out, splitter_mem_ops_
     out->data = mem->alloc(out->length);
 	CHECK_ERROR(out->data == NULL);
 	mem_memcpy(out->data,
-			   ((void *)env->args->task_data) + env->splitter_pos*unit_size,
+			   ((void *)env->args->task_data) + env->splitter_pos,
 			   out->length);
 
     env->splitter_pos += out->length;
