@@ -65,7 +65,7 @@ static void mr_sort_map(map_args_t *args)
 
     assert(data);
     
-    qsort(data, args->length, unit_size, compare_g);
+    qsort(data, args->length / unit_size, unit_size, compare_g);
     for (i = 0; i < args->length; i++)
     {
         emit_intermediate(((char *)data) + (i*unit_size), (void *)0, unit_size); 

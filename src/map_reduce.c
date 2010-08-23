@@ -1898,6 +1898,7 @@ array_splitter (void *data_in, int req_units, map_args_t *out, splitter_mem_ops_
 
     /* Set the start of the next data. */
     out->data = mem->alloc(out->length);
+	CHECK_ERROR(out->data == NULL);
 	mem_memcpy(out->data,
 			   ((void *)env->args->task_data) + env->splitter_pos*unit_size,
 			   out->length);
