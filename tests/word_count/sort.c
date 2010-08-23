@@ -139,7 +139,7 @@ void mapreduce_sort(void *base, size_t num_elems, size_t width,
 #endif
 
     get_time (&begin);
-/*    
+
     char * tmp = (char *)MR_MALLOC(width * num_elems); 
     int i;
     
@@ -149,9 +149,9 @@ void mapreduce_sort(void *base, size_t num_elems, size_t width,
     {
         memcpy(tmp + (i*width), sort_vals.data[i].key, width);
     }
-*/    
-    memcpy(base, sort_vals.data, width * num_elems);
 
-//	free(tmp);
+    memcpy(base, tmp, width * num_elems);
+
+	free(tmp);
     free(sort_vals.data);
 }
