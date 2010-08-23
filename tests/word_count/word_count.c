@@ -139,6 +139,7 @@ tryagain:
 	if(less < 0) {
 		lseek(data->fd, less, SEEK_CUR);
 		data->fpos += less;
+		out->length += less;
 	}
 
 	// If we just read one big long word, then change the req_units and go back
