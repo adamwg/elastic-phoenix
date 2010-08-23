@@ -142,6 +142,8 @@ tryagain:
 		out->length += less;
 	}
 
+	((char *)out->data)[out->length] = 0;
+
 	// If we just read one big long word, then change the req_units and go back
 	// to the top... ugly, but it will work.
 	if(out->length == 0) {
