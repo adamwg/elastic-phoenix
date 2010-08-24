@@ -1205,7 +1205,7 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
     {
         task = (task_queued *)mem_malloc (sizeof (task_queued));
         task->task.id = cur_task_id;
-		task->task.data = args.data;
+		task->task.data = (uint64_t)args.data;
         task->task.len = (uint64_t)args.length;
         queue_push_back (q, &task->queue_elem);
 
@@ -2062,18 +2062,11 @@ static void merge (mr_env_t* env)
 		env->merge_vals = mr_shared_env->merge_vals;
 	}
 
-	/* Both the master and the worker copy over the data from shm once we're
-	 * done because otherwise the app might do something silly */
-	env->args->result->data = mem_malloc(env->merge_vals[0].len * sizeof(keyval_t));
-	mem_memcpy(env->args->result->data, env->merge_vals[0].arr,
-			   env->merge_vals[0].len * sizeof(keyval_t));
 	env->args->result->length = env->merge_vals[0].len;
-
-	BARRIER();
-	
-	MASTER {
-		shm_free(env->merge_vals[0].arr);
-	}
+	env->args->result->data = env->merge_vals[0].arr;
+	/* If applications want to free the result array they should do it only with
+	 * this function */
+	env->args->result->mem_free = &shm_free;
 }
 
 static inline mr_env_t* get_env (void)

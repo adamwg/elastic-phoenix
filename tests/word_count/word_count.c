@@ -356,7 +356,7 @@ int main(int argc, char *argv[])
       dprintf("%15s - %" PRIdPTR "\n", (char *)curr->key, (intptr_t)curr->val);
     }
 
-    free(wc_vals.data);
+    wc_vals.mem_free(wc_vals.data);
 
     CHECK_ERROR(close(fd) < 0);
 

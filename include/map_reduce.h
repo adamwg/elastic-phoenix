@@ -60,8 +60,11 @@ typedef struct
  */
 typedef struct
 {
-   int length;
-   keyval_t *data;
+	int length;
+	keyval_t *data;
+	/* If applications want to free the result array they should do it only with
+	 * this function */
+	void (*mem_free)(void *);
 } final_data_t;
 
 /* Scheduler function pointer type definitions */

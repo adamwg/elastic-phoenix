@@ -153,5 +153,5 @@ void mapreduce_sort(void *base, size_t num_elems, size_t width,
     memcpy(base, tmp, width * num_elems);
 
 	free(tmp);
-    free(sort_vals.data);
+    sort_vals.mem_free(sort_vals.data);
 }
