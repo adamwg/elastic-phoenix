@@ -62,9 +62,6 @@ typedef struct
 {
 	int length;
 	keyval_t *data;
-	/* If applications want to free the result array they should do it only with
-	 * this function */
-	void (*mem_free)(void *);
 } final_data_t;
 
 /* Scheduler function pointer type definitions */
@@ -190,6 +187,10 @@ int map_reduce_finalize ();
  * represents an error. This function is not thread safe. 
  */   
 int map_reduce (map_reduce_args_t * args);
+
+/* MapReduce cleanup function.  Called once per job, with the same args as the
+ * job. */
+void map_reduce_cleanup (map_reduce_args_t *args);
 
 /* This should be called from the map function. It stores a key with key_size
  * bytes and a value in the intermediate queues for processing by the reduce 

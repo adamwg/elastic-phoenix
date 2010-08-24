@@ -409,6 +409,17 @@ map_reduce (map_reduce_args_t * args)
     return 0;
 }
 
+/* This should be called when the application no longer needs data passed back
+ * from a mapreduce job. */
+void map_reduce_cleanup (map_reduce_args_t *args) {
+	MASTER {
+		if(args->result->data != NULL) {
+			shm_free(args->result->data);
+			args->result->data = NULL;
+		}
+	}
+}
+
 int map_reduce_finalize ()
 {
     tpool_t *tpool;
@@ -2024,7 +2035,6 @@ static void merge (mr_env_t* env)
 			/* Already merged, nothing to do here */
 			env->args->result->data = env->final_vals->arr;
 			env->args->result->length = env->final_vals->len;
-			env->args->result->mem_free = &shm_free;
 			
 			shm_free(env->final_vals);
 			
@@ -2062,9 +2072,6 @@ static void merge (mr_env_t* env)
 
 	env->args->result->length = env->merge_vals[0].len;
 	env->args->result->data = env->merge_vals[0].arr;
-	/* If applications want to free the result array they should do it only with
-	 * this function */
-	env->args->result->mem_free = &shm_free;
 }
 
 static inline mr_env_t* get_env (void)
