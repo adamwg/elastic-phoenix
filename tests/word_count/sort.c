@@ -49,7 +49,7 @@ static inline char * MR_GETENV(char *envstr)
     else return env;
 }
 
-
+static int n_elems;
 static int unit_size;
 static int (*compare_g)(const void *, const void *);
 
@@ -92,7 +92,7 @@ static int mr_sort_splitter(void *data_in, int req_units, map_args_t *out, split
 	static int ret = 1;
 	
 	out->data = data_in;
-	out->length = req_units * 16;
+	out->length = n_elems * unit_size;
 	
 	return ret--;
 }
@@ -110,6 +110,7 @@ void mapreduce_sort(void *base, size_t num_elems, size_t width,
 
     // Global variable
     unit_size = width;
+	n_elems = num_elems;
     compare_g = compar;
 
     // Setup map reduce args
