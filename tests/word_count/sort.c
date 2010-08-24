@@ -154,5 +154,5 @@ void mapreduce_sort(void *base, size_t num_elems, size_t width,
 
 	free(tmp);
 
-	map_reduce_cleanup(&args);
+	map_reduce_cleanup(&map_reduce_args);
 }
