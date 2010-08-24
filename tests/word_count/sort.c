@@ -119,7 +119,7 @@ void mapreduce_sort(void *base, size_t num_elems, size_t width,
     map_reduce_args.task_data = base; // Array to sort
     map_reduce_args.map = mr_sort_map;
     map_reduce_args.reduce = NULL; // Identity Reduce
-    map_reduce_args.splitter = mr_sort_splitter; //NULL; // Array splitter //mr_sort_splitter;
+    map_reduce_args.splitter = NULL; // Array splitter //mr_sort_splitter;
     map_reduce_args.key_cmp = compar;
     map_reduce_args.unit_size = width;
     map_reduce_args.partition = mr_mypartition; 

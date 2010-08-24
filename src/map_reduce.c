@@ -1912,7 +1912,7 @@ array_splitter (void *data_in, int req_units, map_args_t *out, splitter_mem_ops_
     out->data = mem->alloc(out->length);
 	CHECK_ERROR(out->data == NULL);
 	mem_memcpy(out->data,
-			   ((void *)env->args->task_data) + env->splitter_pos,
+			   ((char *)data_in) + env->splitter_pos,
 			   out->length);
 
     env->splitter_pos += out->length;
