@@ -1182,8 +1182,10 @@ merge_worker (void *args)
                     thread_index, th_arg->cpu_id);
     }
 
-    /* Unbind thread. */
+    /* Unbind thread.
+	 * Again, doesn't work --awg
     CHECK_ERROR (proc_unbind_thread () != 0);
+    */
 
 #ifdef TIMING
     thread_timing_t *timing = calloc (1, sizeof (thread_timing_t));
