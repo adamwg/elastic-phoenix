@@ -345,10 +345,6 @@ int main(int argc, char *argv[])
 
     mapreduce_sort(wc_vals.data, wc_vals.length, sizeof(keyval_t), mykeyvalcmp);
 
-	map_reduce_cleanup(&map_reduce_args);
-
-    CHECK_ERROR (map_reduce_finalize ());
-
     printf("Wordcount: MapReduce Completed\n");
 
     dprintf("\nWordcount: Results (TOP %d):\n", disp_num);
@@ -358,6 +354,8 @@ int main(int argc, char *argv[])
       dprintf("%15s - %" PRIdPTR "\n", (char *)curr->key, (intptr_t)curr->val);
     }
 
+	map_reduce_cleanup(&map_reduce_args);
+    CHECK_ERROR (map_reduce_finalize ());
     CHECK_ERROR(close(fd) < 0);
 
     get_time (&end);
