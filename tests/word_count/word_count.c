@@ -69,6 +69,10 @@ int mystrcmp(const void *s1, const void *s2)
     return strcmp((const char *)s1, (const char *) s2);
 }
 
+keyval_t deref_keyval_t(keyval_t *kv) {
+	return *kv;
+}
+
 /** mykeyvalcmp()
  *  Comparison function to compare 2 ints
  */
