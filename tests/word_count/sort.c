@@ -140,19 +140,6 @@ void mapreduce_sort(void *base, size_t num_elems, size_t width,
 
     get_time (&begin);
 
-    char * tmp = (char *)MR_MALLOC(width * num_elems); 
-    int i;
-    
-    // Need to copy to temp array first since
-    // we could be sorting array of pointers
-    for(i = 0; i < sort_vals.length; i++)
-    {
-        memcpy(tmp + (i*width), sort_vals.data[i].key, width);
-    }
-
-    memcpy(base, tmp, width * num_elems);
-
-	free(tmp);
-
+    memcpy(base, sort_vals.data, sort_vals.length);
 	map_reduce_cleanup(&map_reduce_args);
 }
