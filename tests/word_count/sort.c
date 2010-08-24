@@ -88,6 +88,13 @@ static int mr_mypartition(int reduce_tasks, void* key, int key_size)
     //return default_partition(reduce_tasks, (void*)key, 4);
 }
 
+static int mr_sort_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_ops_t *mem) {
+	out->data = data_in;
+	out->length = req_units * 16;
+
+	return 1;
+}
+
 extern struct timeval begin, end;
 extern unsigned int library_time;
 
@@ -109,7 +116,7 @@ void mapreduce_sort(void *base, size_t num_elems, size_t width,
     map_reduce_args.task_data = base; // Array to sort
     map_reduce_args.map = mr_sort_map;
     map_reduce_args.reduce = NULL; // Identity Reduce
-    map_reduce_args.splitter = NULL; // Array splitter //mr_sort_splitter;
+    map_reduce_args.splitter = mr_sort_splitter; //NULL; // Array splitter //mr_sort_splitter;
     map_reduce_args.key_cmp = compar;
     map_reduce_args.unit_size = width;
     map_reduce_args.partition = mr_mypartition; 
