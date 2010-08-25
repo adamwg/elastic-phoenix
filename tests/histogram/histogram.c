@@ -42,9 +42,15 @@
 
 #define IMG_DATA_OFFSET_POS 10
 #define BITS_PER_PIXEL_POS 28
+#define READ_AHEAD 32
 
+typedef struct {
+	int fd;
+	int data_bytes;
+	int offset;
+	int unit_size;
+} hist_data_t;
 
-int swap;        // to indicate if we need to swap byte order of header information
 short red_keys[256];
 short green_keys[256];
 short blue_keys[256];
@@ -52,16 +58,16 @@ short blue_keys[256];
 /* test_endianess
  *
  */
-void test_endianess() {
+void test_endianess(int *swap) {
     unsigned int num = 0x12345678;
     char *low = (char *)(&(num));
     if (*low ==  0x78) {
         dprintf("No need to swap\n");
-        swap = 0;
+        *swap = 0;
     }
     else if (*low == 0x12) {
         dprintf("Need to swap\n");
-        swap = 1;
+        *swap = 1;
     }
     else {
         printf("Error: Invalid value found in memory\n");
@@ -194,15 +200,40 @@ void *hist_combiner (iterator_t *itr)
     return (void *)sum;
 }
 
+int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_ops_t *mem) {
+	hist_data_t *data = (hist_data_t *)data_in;
+
+	if(data->offset >= data->data_bytes) {
+		return 0;
+	}
+
+	if(data->data_bytes - data->offset < req_units * data->unit_size) {
+		out->length = data->data_bytes - data->offset;
+	}
+
+	out->data = mem->alloc(out->length);
+	out->length = read(data->fd, out->data, out->length);
+
+	if(out->length % 3) {
+		out->length -= out->length % 3;
+		lseek(data->fd, -(out->length % 3), SEEK_CUR);
+	}
+
+	data->offset += out->length;
+
+	return 1;
+}
+
 int main(int argc, char *argv[]) {
     
     final_data_t hist_vals;
     int i;
-    int fd;
-    char *fdata;
     struct stat finfo;
+	char topdata[READ_AHEAD];
     char * fname;
     struct timeval begin, end;
+
+	hist_data_t hist_data;
 
     get_time (&begin);
 
@@ -220,72 +251,68 @@ int main(int argc, char *argv[]) {
     printf("Histogram: Running...\n");
     
     // Read in the file
-    CHECK_ERROR((fd = open(fname, O_RDONLY)) < 0);
-    // Get the file info (for file length)
-    CHECK_ERROR(fstat(fd, &finfo) < 0);
-#ifndef NO_MMAP
-    // Memory map the file
-    CHECK_ERROR((fdata = mmap(0, finfo.st_size + 1, 
-        PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0)) == NULL);
-#else
-    int ret;
-        
-    fdata = (char *)malloc (finfo.st_size);
-    CHECK_ERROR (fdata == NULL);
+    CHECK_ERROR((hist_data.fd = open(fname, O_RDONLY)) < 0);
+	// Get the file info (for file length)
+	CHECK_ERROR(fstat(hist_data.fd, &finfo) < 0);
 
-    ret = read (fd, fdata, finfo.st_size);
-    CHECK_ERROR (ret != finfo.st_size);
-#endif
+	read(hist_data.fd, topdata, READ_AHEAD);
+	
+	if ((topdata[0] != 'B') || (topdata[1] != 'M')) {
+		printf("File is not a valid bitmap file. Exiting\n");
+		exit(1);
+	}
+	
+	int swap;
+	test_endianess(&swap);     // will set the variable "swap"
 
-    if ((fdata[0] != 'B') || (fdata[1] != 'M')) {
-        printf("File is not a valid bitmap file. Exiting\n");
-        exit(1);
-    }
-    
-    test_endianess();     // will set the variable "swap"
-    
-    unsigned short *bitsperpixel = (unsigned short *)(&(fdata[BITS_PER_PIXEL_POS]));
-    if (swap) {
-        swap_bytes((char *)(bitsperpixel), sizeof(*bitsperpixel));
-    }
-    if (*bitsperpixel != 24) {     // ensure its 3 bytes per pixel
-        printf("Error: Invalid bitmap format - ");
-        printf("This application only accepts 24-bit pictures. Exiting\n");
-        exit(1);
-    }
-    
-    unsigned short *data_pos = (unsigned short *)(&(fdata[IMG_DATA_OFFSET_POS]));
-    if (swap) {
-        swap_bytes((char *)(data_pos), sizeof(*data_pos));
-    }
-    
-    int imgdata_bytes = (int)finfo.st_size - (int)(*(data_pos));
-    printf("This file has %d bytes of image data, %d pixels\n", imgdata_bytes,
-                                                                                imgdata_bytes / 3);
-    
+	unsigned short *bitsperpixel = (unsigned short *)(&(topdata[BITS_PER_PIXEL_POS]));
+	if (swap) {
+		swap_bytes((char *)(bitsperpixel), sizeof(*bitsperpixel));
+	}
+	if (*bitsperpixel != 24) {     // ensure its 3 bytes per pixel
+		printf("Error: Invalid bitmap format - ");
+		printf("This application only accepts 24-bit pictures. Exiting\n");
+		exit(1);
+	}
+	
+	unsigned short data_offset = *(unsigned short *)(&(topdata[IMG_DATA_OFFSET_POS]));
+	if (swap) {
+		swap_bytes((char *)(&data_offset), sizeof(data_offset));
+	}
+	
+	hist_data.data_bytes = (int)finfo.st_size - (int)data_offset;
+	printf("This file has %d bytes of image data, %d pixels\n", hist_data.data_bytes,
+		   hist_data.data_bytes / 3);
+	
     // We use this global variable arrays to store the "key" for each histogram
-    // bucket. This is to prevent memory leaks in the mapreduce scheduler                                                                                
-    for (i = 0; i < 256; i++) {
+    // bucket. This is to prevent memory leaks in the mapreduce scheduler
+	for (i = 0; i < 256; i++) {
         blue_keys[i] = i;
         green_keys[i] = 1000 + i;
         red_keys[i] = 2000 + i;
     }
 
-    // Setup map reduce args
+	// Seek the FD to the beginning of the data
+	lseek(hist_data.fd, data_offset, SEEK_SET);
+
+	hist_data.offset = 0;
+
+	// Setup map reduce args
     map_reduce_args_t map_reduce_args;
     memset(&map_reduce_args, 0, sizeof(map_reduce_args_t));
-    map_reduce_args.task_data = &(fdata[*data_pos]);    //&hist_data;
+    map_reduce_args.task_data = &hist_data;
     map_reduce_args.map = hist_map;
     map_reduce_args.reduce = hist_reduce;
     map_reduce_args.combiner = hist_combiner;
-    map_reduce_args.splitter = NULL; //hist_splitter;
+    map_reduce_args.splitter = hist_splitter;
     map_reduce_args.key_cmp = myshortcmp;
     
     map_reduce_args.unit_size = 3;  // 3 bytes per pixel
+	hist_data.unit_size = 3;
     map_reduce_args.partition = NULL; // use default
     map_reduce_args.result = &hist_vals;
     
-    map_reduce_args.data_size = imgdata_bytes;
+    map_reduce_args.data_size = hist_data.data_bytes;
 
     map_reduce_args.L1_cache_size = atoi(GETENV("MR_L1CACHESIZE"));//1024 * 512;
     map_reduce_args.num_map_threads = atoi(GETENV("MR_NUMTHREADS"));//8;
@@ -343,12 +370,7 @@ int main(int argc, char *argv[]) {
 	map_reduce_cleanup(&map_reduce_args);
 	CHECK_ERROR (map_reduce_finalize ());
 
-#ifndef NO_MMAP
-    CHECK_ERROR (munmap (fdata, finfo.st_size + 1) < 0);
-#else
-    free (fdata);
-#endif
-    CHECK_ERROR (close (fd) < 0);
+    CHECK_ERROR (close (hist_data.fd) < 0);
 
     get_time (&end);
 
