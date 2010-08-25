@@ -89,15 +89,21 @@ static int mr_mypartition(int reduce_tasks, void* key, int key_size)
 }
 
 static int mr_sort_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_ops_t *mem) {
-	static int ret = 1;
+	static int offset = 0;
 
-	if(!ret) return ret;
+	if(offset > n_elems * unit_size) {
+		return(0);
+	}
 	
-	out->length = n_elems * unit_size;
-	out->data = mem->alloc(out->length);
-	memcpy(out->data, data_in, out->length);
+	if(req_units > n_elems) {
+		req_units = n_elems;
+	}
+
+	out->length = req_units * unit_size;
+	out->data = data_in + (offset * unit_size);
+	offset += req_units * unit_size;
 	
-	return ret--;
+	return 1;
 }
 
 extern struct timeval begin, end;
