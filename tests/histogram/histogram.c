@@ -312,8 +312,6 @@ int main(int argc, char *argv[]) {
 
     get_time (&begin);
 
-    CHECK_ERROR (map_reduce_finalize ());
-
     short pix_val;
     intptr_t freq;
     short prev = 0;
@@ -342,7 +340,8 @@ int main(int argc, char *argv[]) {
         prev = pix_val;
     }
 
-    free(hist_vals.data);
+	map_reduce_cleanup(&map_reduce_args);
+	CHECK_ERROR (map_reduce_finalize ());
 
 #ifndef NO_MMAP
     CHECK_ERROR (munmap (fdata, finfo.st_size + 1) < 0);
