@@ -125,7 +125,7 @@ void mapreduce_sort(void *base, size_t num_elems, size_t width,
     map_reduce_args.splitter = mr_sort_splitter; //NULL; // Array splitter //mr_sort_splitter;
     map_reduce_args.key_cmp = compar;
     map_reduce_args.unit_size = width;
-    map_reduce_args.partition = mr_mypartition; 
+    map_reduce_args.partition = NULL; //mr_mypartition; 
     map_reduce_args.result = &sort_vals;
     map_reduce_args.data_size = num_elems * width;
     map_reduce_args.L1_cache_size = atoi(MR_GETENV("MR_L1CACHESIZE"));//1024 * 1024 * 2;
