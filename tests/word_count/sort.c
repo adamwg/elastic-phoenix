@@ -116,6 +116,7 @@ void mapreduce_sort(void *base, size_t num_elems, size_t width,
          int (*compar)(const void *, const void *))
 {
     final_data_t sort_vals;
+	int i;
 
     // Global variable
     unit_size = width;
@@ -159,6 +160,9 @@ void mapreduce_sort(void *base, size_t num_elems, size_t width,
 
     get_time (&begin);
 
-    memcpy(base, sort_vals.data, sort_vals.length);
+	for(i = 0; i < sort_vals.length / unit_size; i++) {
+		memcpy((char *)base + i*unit_size, ((keyval_t *)sort_vals.data)[i].key, unit_size);
+	}
+
 	map_reduce_cleanup(&map_reduce_args);
 }
