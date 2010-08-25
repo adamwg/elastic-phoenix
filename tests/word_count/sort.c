@@ -100,7 +100,7 @@ static int mr_sort_splitter(void *data_in, int req_units, map_args_t *out, split
 	}
 
 	out->length = req_units * unit_size;
-	out->data = data_in + (offset * unit_size);
+	out->data = data_in + offset;
 	offset += req_units * unit_size;
 	
 	return 1;
