@@ -91,7 +91,7 @@ static int mr_mypartition(int reduce_tasks, void* key, int key_size)
 static int mr_sort_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_ops_t *mem) {
 	static int offset = 0;
 
-	if(offset > n_elems * unit_size) {
+	if(offset >= n_elems * unit_size) {
 		return(0);
 	}
 	
