@@ -209,6 +209,8 @@ int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_op
 
 	if(data->data_bytes - data->offset < req_units * data->unit_size) {
 		out->length = data->data_bytes - data->offset;
+	} else {
+		out->length = req_units * data->unit_size;
 	}
 
 	out->data = mem->alloc(out->length);
