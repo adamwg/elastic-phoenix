@@ -80,8 +80,7 @@ void *shm_alloc(size_t size) {
 #endif
 
 	/* Find a free chunk structure */
-	upper = MAX_CHUNKS;
-	for(i = *last_chnk; i < upper; i++) {
+	for(i = *last_chnk; i < MAX_CHUNKS; i++) {
 		/* Atomically check that size is 0 and set it to the new size */
 		if(cmp_and_swp(size, &(chunklist[i].size), 0)) {
 			/* If it succeeded, then we have the chunk and can continue. */
@@ -94,7 +93,6 @@ void *shm_alloc(size_t size) {
 		/* If we've reached the end wrap around */
 		if(i == MAX_CHUNKS - 1) {
 			i = 0;
-			upper = *last_chnk;
 		}
 	}
 
@@ -103,7 +101,7 @@ void *shm_alloc(size_t size) {
 #endif
 
 	/* Out of chunks. */
-	if(i == upper) {
+	if(i == MAX_CHUNKS) {
 #ifdef SHM_DEBUG
 		printf("Out of chunks\n");
 #endif
@@ -117,8 +115,7 @@ void *shm_alloc(size_t size) {
 
 	/* Collect the number of blocks we need */
 	coll = 0;
-	upper = N_BLOCKS;
-	for(j = *last_blk; j < upper; j++) {
+	for(j = *last_blk; j < N_BLOCKS; j++) {
 		/* Try to get this block */
 		if(test_and_set_byte(&blkmap[j])) {
 			if(coll == 0) {
@@ -142,7 +139,6 @@ void *shm_alloc(size_t size) {
 
 			/* Start back at the beginning if we're out of space at the top. */
 			if(j == N_BLOCKS - 1) {
-				upper = *last_blk;
 				j = 0;
 			}
 		}
