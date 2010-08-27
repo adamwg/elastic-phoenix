@@ -69,7 +69,6 @@ void shm_alloc_init(void *base, size_t size, int master) {
 void *shm_alloc(size_t size) {
 	int req = BLOCKS_REQ(size);
 	int i, j, k, coll;
-	int upper;
 
 #ifdef SHM_DEBUG
 	struct timeval b1, e1, b2, e2;
