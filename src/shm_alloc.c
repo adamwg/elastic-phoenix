@@ -28,6 +28,7 @@
 
 static void *alloc_base;
 static uint64_t *last_blk;
+static uint64_t *last_chnk;
 static char *blkmap;
 static void *blocks;
 
@@ -49,7 +50,8 @@ void shm_alloc_init(void *base, size_t size, int master) {
 	/* Set up the allocation constants */
 	alloc_base = base;
 	last_blk = base;
-	blkmap = alloc_base + sizeof(uint64_t);
+	last_chnk = last_blk + sizeof(uint64_t);
+	blkmap = last_chnk + sizeof(uint64_t);
 	chunklist  = (chunk_t *)(blkmap + N_BLOCKS);
 	blocks = (char *)((void *)chunklist + MAX_CHUNKS*sizeof(chunk_t));
 	SHM_SIZE = size - (blocks - alloc_base);
@@ -58,6 +60,7 @@ void shm_alloc_init(void *base, size_t size, int master) {
 	/* If we've declared ourselves the "master" then clear everything out */
 	if(master) {
 		*last_blk = 0;
+		*last_chnk = 0;
 		memset(blkmap, 0, N_BLOCKS);
 		memset(chunklist, 0, MAX_CHUNKS * sizeof(chunk_t));
 	}
@@ -77,14 +80,22 @@ void *shm_alloc(size_t size) {
 #endif
 
 	/* Find a free chunk structure */
-	for(i = 0; i < MAX_CHUNKS; i++) {
+	upper = MAX_CHUNKS;
+	for(i = *last_chnk; i < upper; i++) {
 		/* Atomically check that size is 0 and set it to the new size */
 		if(cmp_and_swp(size, &(chunklist[i].size), 0)) {
 			/* If it succeeded, then we have the chunk and can continue. */
+			*last_chnk = i;
 			break;
 		}
 		/* If it failed, then someone else stole the chunk and we have to
 		   keep looking */
+
+		/* If we've reached the end wrap around */
+		if(i == MAX_CHUNKS - 1) {
+			i = 0;
+			upper = *last_chnk;
+		}
 	}
 
 #ifdef SHM_DEBUG
@@ -92,7 +103,7 @@ void *shm_alloc(size_t size) {
 #endif
 
 	/* Out of chunks. */
-	if(i == MAX_CHUNKS) {
+	if(i == upper) {
 #ifdef SHM_DEBUG
 		printf("Out of chunks\n");
 #endif
