@@ -27,6 +27,7 @@
 #define test_and_set_byte(x) !__sync_lock_test_and_set(x, (char)1)
 
 static void *alloc_base;
+static uint64_t *last_blk;
 static char *blkmap;
 static void *blocks;
 
@@ -47,7 +48,8 @@ static chunk_t *chunklist;
 void shm_alloc_init(void *base, size_t size, int master) {
 	/* Set up the allocation constants */
 	alloc_base = base;
-	blkmap = alloc_base;
+	last_blk = base;
+	blkmap = alloc_base + sizeof(uint64_t);
 	chunklist  = (chunk_t *)(blkmap + N_BLOCKS);
 	blocks = (char *)((void *)chunklist + MAX_CHUNKS*sizeof(chunk_t));
 	SHM_SIZE = size - (blocks - alloc_base);
@@ -55,6 +57,7 @@ void shm_alloc_init(void *base, size_t size, int master) {
 
 	/* If we've declared ourselves the "master" then clear everything out */
 	if(master) {
+		*last_blk = 0;
 		memset(blkmap, 0, N_BLOCKS);
 		memset(chunklist, 0, MAX_CHUNKS * sizeof(chunk_t));
 	}
@@ -63,6 +66,7 @@ void shm_alloc_init(void *base, size_t size, int master) {
 void *shm_alloc(size_t size) {
 	int req = BLOCKS_REQ(size);
 	int i, j, k, coll;
+	int upper;
 
 	struct timeval b1, e1, b2, e2;
 	uint64_t t1, t2;
@@ -99,7 +103,8 @@ void *shm_alloc(size_t size) {
 
 	/* Collect the number of blocks we need */
 	coll = 0;
-	for(j = 0; j < N_BLOCKS; j++) {
+	upper = N_BLOCKS;
+	for(j = *last_blk; j < upper; j++) {
 		/* Try to get this block */
 		if(test_and_set_byte(&blkmap[j])) {
 			if(coll == 0) {
@@ -120,6 +125,12 @@ void *shm_alloc(size_t size) {
 				blkmap[j - coll] = 0;
 			}
 			coll = 0;
+
+			/* Start back at the beginning if we're out of space at the top. */
+			if(j == N_BLOCKS - 1) {
+				upper = *last_blk;
+				j = 0;
+			}
 		}
 	}
 
@@ -136,6 +147,10 @@ void *shm_alloc(size_t size) {
 		}
 		errno = ENOMEM;
 		return NULL;
+	} else {
+		/* Note that this is not guaranteed to be consistent - but that's OK for
+		 * us. */
+		*last_blk = j;
 	}
 
 #ifdef SHM_DEBUG
