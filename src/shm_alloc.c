@@ -68,15 +68,14 @@ void *shm_alloc(size_t size) {
 	int i, j, k, coll;
 	int upper;
 
+#ifdef SHM_DEBUG
 	struct timeval b1, e1, b2, e2;
 	uint64_t t1, t2;
 
-#ifdef SHM_DEBUG
 	printf("Allocating shm block of size %d ... ", size);
+	gettimeofday(&b1, NULL);
 #endif
 
-	gettimeofday(&b1, NULL);
-	
 	/* Find a free chunk structure */
 	for(i = 0; i < MAX_CHUNKS; i++) {
 		/* Atomically check that size is 0 and set it to the new size */
@@ -88,7 +87,9 @@ void *shm_alloc(size_t size) {
 		   keep looking */
 	}
 
+#ifdef SHM_DEBUG
 	gettimeofday(&e1, NULL);
+#endif
 
 	/* Out of chunks. */
 	if(i == MAX_CHUNKS) {
@@ -99,7 +100,9 @@ void *shm_alloc(size_t size) {
 		return NULL;
 	}
 
+#ifdef SHM_DEBUG
 	gettimeofday(&b2, NULL);
+#endif
 
 	/* Collect the number of blocks we need */
 	coll = 0;
@@ -134,7 +137,9 @@ void *shm_alloc(size_t size) {
 		}
 	}
 
+#ifdef SHM_DEBUG
 	gettimeofday(&e2, NULL);
+#endif
 
 	/* Out of space. */
 	if(coll < req) {
@@ -155,11 +160,10 @@ void *shm_alloc(size_t size) {
 
 #ifdef SHM_DEBUG
 	printf("OK\n");
-#endif
-
 	t1 = (e1.tv_sec - b1.tv_sec)*1000000 + (e1.tv_usec - b1.tv_usec);
 	t2 = (e2.tv_sec - b2.tv_sec)*1000000 + (e2.tv_usec - b2.tv_usec);
 	printf("SHM_ALLOC TIMING: Phase 1 %lu -- Phase 2 %lu\n", t1, t2);
+#endif
 
 	return chunklist[i].start;
 }
