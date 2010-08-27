@@ -51,7 +51,7 @@ void shm_alloc_init(void *base, size_t size, int master) {
 	alloc_base = base;
 	last_blk = base;
 	last_chnk = last_blk + sizeof(uint64_t);
-	blkmap = last_chnk + sizeof(uint64_t);
+	blkmap = (void *)last_chnk + sizeof(uint64_t);
 	chunklist  = (chunk_t *)(blkmap + N_BLOCKS);
 	blocks = (char *)((void *)chunklist + MAX_CHUNKS*sizeof(chunk_t));
 	SHM_SIZE = size - (blocks - alloc_base);
