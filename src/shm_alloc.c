@@ -33,7 +33,7 @@ static char *blkmap;
 static void *blocks;
 
 /* The size of the shared memory, in bytes */
-static int SHM_SIZE;
+static int ALLOC_SIZE;
 /* Minimum allocation size */
 static int BLK_SIZE;
 
@@ -54,8 +54,10 @@ void shm_alloc_init(void *base, size_t size, int master) {
 	blkmap = (void *)last_chnk + sizeof(uint64_t);
 	chunklist  = (chunk_t *)(blkmap + N_BLOCKS);
 	blocks = (char *)((void *)chunklist + MAX_CHUNKS*sizeof(chunk_t));
-	SHM_SIZE = size - (blocks - alloc_base);
-	BLK_SIZE = SHM_SIZE / N_BLOCKS;
+	ALLOC_SIZE = size - (blocks - alloc_base);
+	BLK_SIZE = ALLOC_SIZE / N_BLOCKS;
+
+	CHECK_ERROR(blocks >= alloc_base + size);
 
 	/* If we've declared ourselves the "master" then clear everything out */
 	if(master) {
