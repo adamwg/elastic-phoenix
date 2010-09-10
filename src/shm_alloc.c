@@ -33,9 +33,9 @@ static char *blkmap;
 static void *blocks;
 
 /* The size of the shared memory, in bytes */
-static int ALLOC_SIZE;
+static size_t ALLOC_SIZE;
 /* Minimum allocation size */
-static int BLK_SIZE;
+static size_t BLK_SIZE;
 
 typedef struct {
 	/* The size of this allocated chunk */
