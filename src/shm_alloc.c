@@ -145,6 +145,7 @@ void *shm_alloc(size_t size) {
 		if(j == N_BLOCKS - 1 && first) {
 			j = 0;
 			first = 0;
+			coll = 0;
 		}
 	}
 
