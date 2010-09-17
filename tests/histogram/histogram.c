@@ -203,7 +203,7 @@ void *hist_combiner (iterator_t *itr)
 int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_ops_t *mem) {
 	hist_data_t *data = (hist_data_t *)data_in;
 
-	if(data->offset >= data->data_bytes) {
+	if(data->offset > data->data_bytes - data->unit_size) {
 		return 0;
 	}
 
@@ -216,9 +216,9 @@ int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_op
 	out->data = mem->alloc(out->length);
 	out->length = read(data->fd, out->data, out->length);
 
-	if(out->length % 3) {
-		out->length -= out->length % 3;
-		lseek(data->fd, -(out->length % 3), SEEK_CUR);
+	if(out->length % data->unit_size) {
+		out->length -= out->length % data->unit_size;
+		lseek(data->fd, -(out->length % data->unit_size), SEEK_CUR);
 	}
 
 	data->offset += out->length;
