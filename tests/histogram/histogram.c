@@ -214,6 +214,7 @@ int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_op
 	}
 
 	out->data = mem->alloc(out->length);
+	CHECK_ERROR (out->data == NULL);
 	out->length = read(data->fd, out->data, out->length);
 
 	if(out->length % data->unit_size) {
