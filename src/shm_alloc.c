@@ -139,12 +139,12 @@ void *shm_alloc(size_t size) {
 				blkmap[j - coll] = 0;
 			}
 			coll = 0;
+		}
 
-			/* Start back at the beginning if we're out of space at the top. */
-			if(j == N_BLOCKS - 1 && first) {
-				j = 0;
-				first = 0;
-			}
+		/* Start back at the beginning if we're out of space at the top. */
+		if(j == N_BLOCKS - 1 && first) {
+			j = 0;
+			first = 0;
 		}
 	}
 
