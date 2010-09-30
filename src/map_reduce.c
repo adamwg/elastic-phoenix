@@ -1956,10 +1956,18 @@ static void map (mr_env_t* env)
 {
     thread_arg_t   th_arg;
     int            num_map_tasks;
-
+	struct timeval begin, end;
+	
 	MASTER {
+		get_time (&begin);
 		num_map_tasks = gen_map_tasks (env);
-		assert (num_map_tasks >= 0);
+		get_time (&end);
+
+#ifdef TIMING
+    fprintf(stderr, "splitter time: %u\n", time_diff (&end, &begin));
+#endif
+
+	assert (num_map_tasks >= 0);
 		
 		env->num_map_tasks = num_map_tasks;
 		mr_shared_env->num_map_tasks = num_map_tasks;
