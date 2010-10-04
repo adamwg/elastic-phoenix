@@ -37,6 +37,11 @@ if [[ -n "$PBS_O_WORKDIR" ]]; then
     cd $PBS_O_WORKDIR;
 fi;
 
+rm -f /dev/shm/awolfe;
+echo -n "Flushing memory ... ";
+bin/flushmem;
+echo "Done";
+
 # Check for the hosts file
 if [[ ! -e "hosts" ]]; then echo "No hosts file found!"; exit 1; fi;
 
