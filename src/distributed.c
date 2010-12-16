@@ -30,9 +30,17 @@ void barrier_init(mr_barrier_t *bar) {
 }
 
 void barrier(mr_barrier_t *bar) {
-	/* Lock */
-	pthread_spin_lock(&mr_shared_env->bpl);
+	int bplheld = 0;
+	
+	/* Lock the barrier */
 	pthread_spin_lock(&bar->lock);
+
+	/* The first enterer should lock the BPL so that new workers can't init
+	 * while the barrier is happening. */
+	if(bar->count == 0) {
+		pthread_spin_lock(&mr_shared_env->bpl);
+		bplheld = 1;
+	}
 
 	/* Increment the count */
 	bar->count += 1;
@@ -43,7 +51,6 @@ void barrier(mr_barrier_t *bar) {
 		while(!bar->alldone);
 		/* When we're all done, atomically increment the extied counter */
 		__sync_fetch_and_add(&bar->exited, 1);
-		return;
 	} else if(bar->count == mr_shared_env->worker_counter + 1) {
 		/* If we're the last one to get here, set the alldone flag */
 		bar->alldone = 1;
@@ -57,6 +64,9 @@ void barrier(mr_barrier_t *bar) {
 
 		/* Unlock so the next barrier can work */
 		pthread_spin_unlock(&bar->lock);
+	}
+
+	if(bplheld) {
 		pthread_spin_unlock(&mr_shared_env->bpl);
 	}
 }
