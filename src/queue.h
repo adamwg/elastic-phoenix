@@ -27,6 +27,8 @@
 #ifndef QUEUE_H_
 #define QUEUE_H_
 
+#include <assert.h>
+
 #include "list.h"
 
 typedef list queue_t;

@@ -33,8 +33,6 @@
 #include <stdlib.h>
 #endif
 
-typedef struct iterator_t iterator_t;
-
 int iter_init (iterator_t *itr, int num_lists)
 {
     assert (itr);

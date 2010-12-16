@@ -14,7 +14,7 @@
 
 taskQ_t *the_tq = NULL;
 
-taskQ_t *tq_init(int num_threads) {
+taskQ_t *tq_init() {
 	the_tq = shm_base;
 	MASTER {
 		static_lock_alloc((mr_lock_t)&the_tq->lock);
@@ -78,7 +78,7 @@ int tq_dequeue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
 	return 1;
 }
 
-void tq_reset (taskQ_t* tq, int num_threads) {
+void tq_reset (taskQ_t* tq) {
 	lock_acquire((mr_lock_t)&tq->lock);
 	tq->head = tq->tail = 0;
 	lock_release((mr_lock_t)&tq->lock);

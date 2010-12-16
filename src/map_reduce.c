@@ -54,6 +54,7 @@
 #include "locality.h"
 #include "struct.h"
 #include "tpool.h"
+#include "tunables.h"
 
 #include "distributed.h"
 #include "shm_alloc.h"
@@ -61,18 +62,6 @@
 #if !defined(_LINUX_) && !defined(_SOLARIS_)
 #error OS not supported
 #endif
-
-/* Begin tunables. */
-//#define INCREMENTAL_COMBINER
-
-#define DEFAULT_NUM_REDUCE_TASKS    256
-#define EXTENDED_NUM_REDUCE_TASKS   (DEFAULT_NUM_REDUCE_TASKS * 128)
-#define DEFAULT_CACHE_SIZE          (64 * 1024)
-//#define DEFAULT_CACHE_SIZE        (8 * 1024)
-#define DEFAULT_KEYVAL_ARR_LEN      10
-#define DEFAULT_VALS_ARR_LEN        10
-#define L2_CACHE_LINE_SIZE          64
-/* End tunables. */
 
 /* Debug printf */
 #ifdef dprintf
@@ -84,55 +73,6 @@
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
 #define OUT_PREFIX "[Phoenix] "
 
-/* A key and a value pair. */
-typedef struct 
-{
-    /* TODO add static assertion to make sure this fits in L2 line */
-    union {
-        struct {
-            int         len;
-            int         alloc_len;
-            int         pos;
-            keyval_t    *arr;
-        };
-        char pad[L2_CACHE_LINE_SIZE];
-    };
-} keyval_arr_t;
-
-/* Array of keyvals_t. */
-typedef struct 
-{
-    int len;
-    int alloc_len;
-    int pos;
-    keyvals_t *arr;
-} keyvals_arr_t;
-
-/* Thread information.
-   Denotes the id and the assigned CPU of a thread. */
-typedef struct 
-{
-    union {
-        struct {
-            pthread_t tid;
-            int curr_task;
-        };
-        char pad[L2_CACHE_LINE_SIZE];
-    };
-} thread_info_t;
-
-typedef struct
-{
-    uintptr_t work_time;
-    uintptr_t user_time;
-    uintptr_t combiner_time;
-} thread_timing_t;
-
-typedef struct {
-    task_t          task;
-    queue_elem_t    queue_elem;
-} task_queued;
-
 /* Internal map reduce state. */
 typedef struct
 {
@@ -141,14 +81,11 @@ typedef struct
     int num_reduce_tasks;           /* # of reduce tasks. */
     int chunk_size;                 /* # of units of data for each map task. */
     int num_procs;                  /* # of processors to run on. */
-    int l_num_map_threads;            /* # of threads for map tasks. */
-    int l_num_reduce_threads;         /* # of threads for reduce tasks. */
+    int l_num_map_threads;            /* # of threads for map tasks in this worker. */
+    int l_num_reduce_threads;         /* # of threads for reduce tasks in this worker. */
     int num_merge_threads;          /* # of threads for merge tasks. */
     float key_match_factor;         /* # of values likely to be matched 
                                        to the same key. */
-
-    bool oneOutputQueuePerMapTask;      /* One output queue per map task? */
-    bool oneOutputQueuePerReduceTask;   /* One output queue per reduce task? */
 
     int intermediate_task_alloc_len;
 
@@ -181,34 +118,12 @@ typedef struct
 
 	int worker_id;                  /* The worker ID of this process, used to
 									 * offset thread IDs */
-	int g_num_map_threads;
-	int g_num_reduce_threads;
 } mr_env_t;
-
-/* Shared mr state */
-typedef struct {
-	volatile int ready;
-	keyvals_arr_t **intermediate_vals;
-	keyval_arr_t *final_vals;
-	keyval_arr_t *merge_vals;
-	void *result;
-	int result_len;
-	mr_barrier_t mr_barrier;
-	int num_map_tasks;
-	int num_reduce_tasks;
-
-	int worker_counter;
-} mr_shared_env_t;
-
-mr_shared_env_t *mr_shared_env;
-
-#define BARRIER() barrier(&mr_shared_env->mr_barrier)
 
 #ifdef TIMING
 static pthread_key_t emit_time_key;
 #endif
 static pthread_key_t env_key;       /* Environment for current thread. */
-static pthread_key_t tpool_key;
 
 /* Data passed on to each worker thread. */
 typedef struct
@@ -249,6 +164,7 @@ static int gen_map_tasks (mr_env_t* env);
 static int gen_map_tasks_split(mr_env_t* env, queue_t* q);
 static int gen_reduce_tasks (mr_env_t* env);
 
+static void split(mr_env_t* mr);
 static void map(mr_env_t* mr);
 static void reduce(mr_env_t* mr);
 static void merge(mr_env_t* mr);
@@ -261,10 +177,6 @@ int
 map_reduce_init (int *argc, char ***argv)
 {
 	int i;
-	
-    CHECK_ERROR (pthread_key_create (&tpool_key, NULL));
-
-    CHECK_ERROR (pthread_setspecific (tpool_key, NULL));
 
 	/* Check that we got a master or worker argument */
 	if(*argc < 3 ||
@@ -283,11 +195,6 @@ map_reduce_init (int *argc, char ***argv)
 		master_node = 0;
 	}
 
-	if((N_WORKERS = atoi((*argv)[2])) < 1) {
-		printf("Number of workers must be at least 1.\n");
-		return(-1);
-	}
-
 	/* Strip off the arguments */
 	for(i = 1; i < *argc - 2; i++) {
 		(*argv)[i] = (*argv)[i+2];
@@ -296,31 +203,28 @@ map_reduce_init (int *argc, char ***argv)
 	(*argv)[*argc - 1] = NULL;
 	*argc -= 2;
 
+	/* Set up shared memory */
 	shm_init();
-	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), master_node);
-
+	/* The shared env lives just after the task queue */
 	mr_shared_env = shm_base + TQ_SIZE;
-	mr_shared_env->ready = 0;
-	mr_shared_env->worker_counter = 0;
 
-	/* This is, in a sense, the first "barrier".  It should probably be replaced
-	 * by an (even unreliable) interrupt at some point. */
-	MASTER {
-		barrier_init(&mr_shared_env->mr_barrier);
-		mr_shared_env->ready = 1;
-	}
-	WORKER {
-		while(!mr_shared_env->ready);
-	}
-
-	return 0;
+	return(0);
 }
 
 int
-map_reduce (map_reduce_args_t * args)
-{
+map_reduce(map_reduce_args_t *args) {
+	int i;
     struct timeval begin, end;
     mr_env_t* env;
+
+	MASTER {
+		shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), master_node);
+		mr_shared_env->worker_counter = 0;
+		barrier_init(&mr_shared_env->mr_barrier);
+		pthread_spin_init(&mr_shared_env->bpl, PTHREAD_PROCESS_SHARED);
+		pthread_spin_lock(&mr_shared_env->bpl);
+		mr_shared_env->current_stage = TASK_TYPE_MAP;
+	}
 
     assert (args != NULL);
     assert (args->map != NULL);
@@ -337,26 +241,17 @@ map_reduce (map_reduce_args_t * args)
        return -1;
     }
     env_print (env);
-    env->taskQueue = tq_init (env->g_num_map_threads);
+    env->taskQueue = tq_init ();
     assert (env->taskQueue != NULL);
 
-    /* Reuse thread pool. */
-    env->tpool = pthread_getspecific (tpool_key);
-    if (env->tpool == NULL) {
-        tpool_t *tpool;
-
-        tpool = tpool_create (env->l_num_map_threads);
-        CHECK_ERROR (tpool == NULL);
-
-        env->tpool = tpool;
-        CHECK_ERROR (pthread_setspecific (tpool_key, tpool));
-    }
+    /* Create thread pool. */
+	env->tpool = tpool_create (env->l_num_map_threads);
+	CHECK_ERROR (env->tpool == NULL);
 
 #ifdef TIMING
     CHECK_ERROR (pthread_key_create (&emit_time_key, NULL));
 #endif
     CHECK_ERROR (pthread_key_create (&env_key, NULL));
-
     pthread_setspecific (env_key, env);
 
     get_time (&end);
@@ -365,39 +260,78 @@ map_reduce (map_reduce_args_t * args)
     fprintf (stderr, "library init: %u\n", time_diff (&end, &begin));
 #endif
 
-    /* Run map tasks and get intermediate values. */
-    get_time (&begin);
-    map (env);
-    get_time (&end);
-
+	/* Split the input data - in the master thread */
+	MASTER {
+		split (env);
+		/* Now we can let workers start, if they've started too soon */
+		pthread_spin_unlock(&mr_shared_env->bpl);
+	}
+	BARRIER();
+	
+    /* Run map tasks and get intermediate values - in the workers */
+	if(mr_shared_env->current_stage == TASK_TYPE_MAP) {
+		get_time (&begin);
+		WORKER {
+			map (env);
+		}
+		get_time (&end);
 #ifdef TIMING
-    fprintf (stderr, "map phase: %u\n", time_diff (&end, &begin));
+		fprintf (stderr, "map phase: %u\n", time_diff (&end, &begin));
 #endif
+		BARRIER();
 
-    dprintf("In scheduler, all map tasks are done, now scheduling reduce tasks\n");
-    
-    /* Run reduce tasks and get final values. */
-    get_time (&begin);
-    reduce (env);
-    get_time (&end);
+		dprintf("In scheduler, all map tasks are done, now scheduling reduce tasks\n");
+		
+		MASTER {
+			CHECK_ERROR (gen_reduce_tasks (env));
+			mr_shared_env->current_stage = TASK_TYPE_REDUCE;
+		}
+		BARRIER();
+	}
 
+	if(mr_shared_env->current_stage == TASK_TYPE_REDUCE) {
+		/* Run reduce tasks and get final values - in workers */
+		get_time (&begin);
+		WORKER {
+			reduce (env);
+		}
+		get_time (&end);
 #ifdef TIMING
-    fprintf (stderr, "reduce phase: %u\n", time_diff (&end, &begin));
+		fprintf (stderr, "reduce phase: %u\n", time_diff (&end, &begin));
 #endif
+		BARRIER();
+	}
 
     dprintf("In scheduler, all reduce tasks are done, now scheduling merge tasks\n");
 
-    get_time (&begin);
-    merge (env);
-    get_time (&end);
-
+	/* Merge - in the master */
+	MASTER {
+		/* Cleanup intermediate results. */
+		for (i = 0; i < env->intermediate_task_alloc_len; ++i)
+		{
+			shm_free (env->intermediate_vals[i]);
+		}
+		shm_free (env->intermediate_vals);
+		/* Do the merge */
+		get_time (&begin);
+		merge (env);
+		get_time (&end);
 #ifdef TIMING
-    fprintf (stderr, "merge phase: %u\n", time_diff (&end, &begin));
+		fprintf (stderr, "merge phase: %u\n", time_diff (&end, &begin));
 #endif
+	}
+	BARRIER();
+
+	WORKER {
+		env->merge_vals = mr_shared_env->merge_vals;
+	}
+	env->args->result->length = env->merge_vals[0].len;
+	env->args->result->data = env->merge_vals[0].arr;
 
     /* Cleanup. */
     get_time (&begin);
     env_fini(env);
+    CHECK_ERROR (tpool_destroy (env->tpool));
     CHECK_ERROR (pthread_key_delete (env_key));
     get_time (&end);
 
@@ -409,6 +343,10 @@ map_reduce (map_reduce_args_t * args)
     return 0;
 }
 
+int map_reduce_finalize () {
+	return 0;
+}
+
 /* This should be called when the application no longer needs data passed back
  * from a mapreduce job. */
 void map_reduce_cleanup (map_reduce_args_t *args) {
@@ -418,18 +356,6 @@ void map_reduce_cleanup (map_reduce_args_t *args) {
 			args->result->data = NULL;
 		}
 	}
-}
-
-int map_reduce_finalize ()
-{
-    tpool_t *tpool;
-
-    tpool = pthread_getspecific (tpool_key);
-    CHECK_ERROR (tpool_destroy (tpool));
-
-    pthread_key_delete (tpool_key);
-
-    return 0;
 }
 
 /**
@@ -465,9 +391,14 @@ env_init (map_reduce_args_t *args)
 
     env->args = args;
 
+	/* Acquire a worker id */
 	WORKER {
-		/* Acquire a worker id */
-		env->worker_id = __sync_fetch_and_add(&mr_shared_env->worker_counter, 1);
+		/* We need to lock around this so that the barrier doesn't change
+		   halfway through */
+		pthread_spin_lock(&mr_shared_env->bpl);
+		/* Since we lock, this doesn't need to be an atomic op */
+		env->worker_id = mr_shared_env->worker_counter++;
+		pthread_spin_unlock(&mr_shared_env->bpl);
 	}
 	
     /* 1. Determine paramenters. */
@@ -482,9 +413,6 @@ env_init (map_reduce_args_t *args)
     }
     env->num_procs = num_procs;
 
-    env->oneOutputQueuePerMapTask = false;
-    env->oneOutputQueuePerReduceTask = args->use_one_queue_per_task;
-
     /* Determine the number of threads to schedule for each type of task. */
 	env->l_num_map_threads = (args->num_map_threads > 0) ? 
 		args->num_map_threads : num_procs;
@@ -492,17 +420,9 @@ env_init (map_reduce_args_t *args)
 	env->l_num_reduce_threads = (args->num_reduce_threads > 0) ? 
 		args->num_reduce_threads : num_procs;
 
-	env->g_num_map_threads = N_WORKERS * env->l_num_map_threads;
-	env->g_num_reduce_threads = N_WORKERS * env->l_num_reduce_threads;
-	
 	MASTER {
 		/* Only the master merges */
-		env->num_merge_threads = (args->num_merge_threads > 0) ? 
-			args->num_merge_threads : env->g_num_reduce_threads;
-		
-		if (env->oneOutputQueuePerReduceTask == false) {
-			env->num_merge_threads = env->g_num_reduce_threads / 2;
-		}
+		env->num_merge_threads = (mr_shared_env->worker_counter * L_NUM_THREADS) / 2;
 		
 		/* Assign at least one merge thread. */
 		env->num_merge_threads = MAX(env->num_merge_threads, 1);
@@ -519,40 +439,13 @@ env_init (map_reduce_args_t *args)
        until there is no more data left. */
     env->num_map_tasks = 0;
 
-    if (args->L1_cache_size > 0)
-    {
-        env->chunk_size = args->L1_cache_size / args->unit_size;
-        env->num_reduce_tasks = (int)
-            ( (env->key_match_factor * args->data_size) /
-                args->L1_cache_size);
-    }
-    else
-    {
-        env->chunk_size = DEFAULT_CACHE_SIZE / args->unit_size;
-        env->num_reduce_tasks = (int) 
-            ( (env->key_match_factor * args->data_size) / 
-                DEFAULT_CACHE_SIZE );
-    }
-
-    if (env->num_reduce_tasks <= 0) env->num_reduce_tasks = 1;
     if (env->chunk_size <= 0) env->chunk_size = 1;
 
-    if (env->oneOutputQueuePerReduceTask == false) 
-    {
-        env->num_reduce_tasks = EXTENDED_NUM_REDUCE_TASKS;
-    } 
-    else 
-    {
-        env->num_reduce_tasks = DEFAULT_NUM_REDUCE_TASKS;
-    }
+	env->num_reduce_tasks = NUM_REDUCE_TASKS;
     env->num_merge_threads = MIN (
         env->num_merge_threads, env->num_reduce_tasks / 2);
 
-    if (env->oneOutputQueuePerMapTask) 
-        env->intermediate_task_alloc_len = 
-            args->data_size / env->chunk_size + 1;
-    else
-        env->intermediate_task_alloc_len = env->g_num_map_threads;
+	env->intermediate_task_alloc_len = MAX_WORKER_THREADS;
 
     /* Register callbacks. */
     env->map = args->map;
@@ -582,27 +475,10 @@ env_init (map_reduce_args_t *args)
 
 		mr_shared_env->intermediate_vals = env->intermediate_vals;
 		
-		if (env->oneOutputQueuePerReduceTask)
-		{
-			env->final_vals = 
-				(keyval_arr_t *)shm_alloc (
-					env->num_reduce_tasks * sizeof (keyval_arr_t));
-			CHECK_ERROR(env->final_vals == NULL);
-			memset(env->final_vals, 0, env->num_reduce_tasks * sizeof(keyval_arr_t));
-			
-			dprintf("tasks: %d (%ld)\n", env->num_reduce_tasks, sizeof(keyvals_arr_t));
-		}
-		else
-		{
-			env->final_vals =
-				(keyval_arr_t *)shm_alloc (
-					env->g_num_reduce_threads * sizeof (keyval_arr_t));
-			CHECK_ERROR(env->final_vals == NULL);
-			memset(env->final_vals, 0, env->g_num_reduce_threads * sizeof(keyval_arr_t));
-
-			dprintf("threads: %d\n", env->g_num_reduce_threads);
-		}
-
+		env->final_vals = (keyval_arr_t *)shm_alloc (MAX_WORKER_THREADS * sizeof (keyval_arr_t));
+		CHECK_ERROR(env->final_vals == NULL);
+		memset(env->final_vals, 0, MAX_WORKER_THREADS * sizeof(keyval_arr_t));
+		
 		mr_shared_env->final_vals = env->final_vals;
 	}
 	BARRIER();
@@ -626,8 +502,6 @@ void env_print (mr_env_t* env)
     printf (OUT_PREFIX "proc_offset = %u\n", env->args->proc_offset);
     printf (OUT_PREFIX "l_num_map_threads = %u\n", env->l_num_map_threads);
     printf (OUT_PREFIX "l_num_reduce_threads = %u\n", env->l_num_reduce_threads);
-    printf (OUT_PREFIX "g_num_map_threads = %u\n", env->g_num_map_threads);
-    printf (OUT_PREFIX "g_num_reduce_threads = %u\n", env->g_num_reduce_threads);
     printf (OUT_PREFIX "num_merge_threads = %u\n", env->num_merge_threads);
 	printf (OUT_PREFIX "worker_id = %d\n", env->worker_id);
 }
@@ -810,10 +684,7 @@ static bool map_worker_do_next_task (
     int             curr_task;
     task_t          map_task;
     map_args_t      thread_func_arg;
-    bool            oneOutputQueuePerMapTask;
     int             lgrp = args->lgrp;
-
-    oneOutputQueuePerMapTask = env->oneOutputQueuePerMapTask;
 
     alloc_len = env->intermediate_task_alloc_len;
 
@@ -1079,13 +950,10 @@ reduce_worker (void *args)
     CHECK_ERROR (pthread_setspecific (emit_time_key, 0));
 #endif
 
-    if (env->oneOutputQueuePerMapTask)
-        num_map_threads = env->num_map_tasks;
-    else
-        num_map_threads = env->g_num_map_threads;
+	num_map_threads = L_NUM_THREADS;
 
     /* Assuming !oneOutputQueuePerMapTask */
-    CHECK_ERROR (iter_init (&rwta.itr, env->g_num_map_threads));
+    CHECK_ERROR (iter_init (&rwta.itr, num_map_threads));
     rwta.num_map_threads = num_map_threads;
     rwta.lgrp = loc_get_lgrp();
 
@@ -1256,7 +1124,7 @@ static int gen_map_tasks_distribute_lgrp (
     int             num_lgrps;
     int             lgrp;
 
-    num_lgrps = env->g_num_map_threads / loc_get_lgrp_size();
+    num_lgrps = L_NUM_THREADS / loc_get_lgrp_size();
     if (num_lgrps == 0) num_lgrps = 1;
 
     tasks_per_lgrp = num_map_tasks / num_lgrps;
@@ -1377,10 +1245,10 @@ static int gen_map_tasks (mr_env_t* env)
         return -1;
     }
 
-    num_map_threads = env->g_num_map_threads;
+    num_map_threads = L_NUM_THREADS;
     if (num_map_tasks < num_map_threads)
         num_map_threads = num_map_tasks;
-    tq_reset (env->taskQueue, num_map_threads);
+    tq_reset (env->taskQueue);
 
     ret = gen_map_tasks_distribute (env, num_map_tasks, &temp_queue);
     if (ret == 0) ret = num_map_tasks;
@@ -1396,14 +1264,14 @@ static int gen_reduce_tasks (mr_env_t* env)
     uint64_t task_id;
     task_t reduce_task;
 
-    tq_reset (env->taskQueue, env->g_num_reduce_threads);
+    tq_reset (env->taskQueue);
 
-    tasks_per_thread = env->num_reduce_tasks / env->g_num_reduce_threads;
+    tasks_per_thread = env->num_reduce_tasks / L_NUM_THREADS;
     tasks_leftover = env->num_reduce_tasks - 
-        tasks_per_thread * env->g_num_map_threads;
+        tasks_per_thread * L_NUM_THREADS;
 
     task_id = 0;
-    for (tid = 0; tid < env->g_num_reduce_threads; ++tid) {
+    for (tid = 0; tid < L_NUM_THREADS; ++tid) {
         int remaining_cur_thread_tasks;
 
         remaining_cur_thread_tasks = tasks_per_thread;
@@ -1435,8 +1303,6 @@ static int gen_reduce_tasks (mr_env_t* env)
 #ifndef INCREMENTAL_COMBINER
 static void run_combiner (mr_env_t* env, int thread_index)
 {
-    assert (! env->oneOutputQueuePerMapTask);
-
     int i, j;
     keyvals_arr_t *my_output;
     keyvals_t *reduce_pos;
@@ -1495,7 +1361,6 @@ emit_intermediate (void *key, void *val, int key_size)
     static __thread int curr_thread = -1;
 	int             g_curr_thread;
     int             curr_task;
-    bool            oneOutputQueuePerMapTask;
     keyvals_arr_t   *arr;
     mr_env_t        *env;
 
@@ -1506,13 +1371,8 @@ emit_intermediate (void *key, void *val, int key_size)
         curr_thread = getCurrThreadIndex (TASK_TYPE_MAP);
 	g_curr_thread = getGlobalThreadIndex(env, curr_thread, env->l_num_map_threads);
 
-    oneOutputQueuePerMapTask = env->oneOutputQueuePerMapTask;
-
-    if (oneOutputQueuePerMapTask)
-        curr_task = env->tinfo[curr_thread].curr_task;
-	else
-        curr_task = g_curr_thread;
-   
+	curr_task = g_curr_thread;
+	
     int reduce_pos = env->partition (env->num_reduce_tasks, key, key_size);
     reduce_pos %= env->num_reduce_tasks;
 
@@ -1546,12 +1406,7 @@ emit_inline (mr_env_t* env, void *key, void *val)
         thread_index = getCurrThreadIndex (TASK_TYPE_REDUCE);
 	g_thread_index = getGlobalThreadIndex(env, thread_index, env->l_num_reduce_threads);
 
-    if (env->oneOutputQueuePerReduceTask) {
-        curr_red_queue = env->tinfo[thread_index].curr_task;
-    }
-    else {
-        curr_red_queue = g_thread_index;
-    }
+	curr_red_queue = g_thread_index;
 
     /* Insert sorted in global queue at pos curr_proc */
     arr = &env->final_vals[curr_red_queue];
@@ -1723,46 +1578,36 @@ insert_keyval (mr_env_t* env, keyval_arr_t *arr, void *key, void *val)
         }
     }
 
-    if (env->oneOutputQueuePerReduceTask == false)
-    {
-        /* Need to sort. */
-        if (arr->len > 0)
-            cmp = env->key_cmp(arr->arr[arr->len - 1].key, key);
-
-        if (cmp > 0)
-        {
-            /* Binary search the array to find the key. */
-            while (high - low > 1)
-            {
-                next = (high + low) / 2;
-                if (env->key_cmp(arr->arr[next].key, key) > 0)
-                    high = next;
-                else
-                    low = next;
-            }
-
-            if (low < 0) low = 0;
-            if (arr->len > 0 && env->key_cmp(arr->arr[low].key, key) < 0)
-                low++;
-        }
-        else
-            low = arr->len;
-
-
-        /* Insert into array. */
-        memmove (&arr->arr[low+1], &arr->arr[low], 
-            (arr->len - low) * sizeof(keyval_t));
-
-        arr->arr[low].key = key;
-        arr->arr[low].val = val;
-    }
-    else
-    {
-        /* No need to sort. Just append. */
-        arr->arr[arr->len].key = key;
-        arr->arr[arr->len].val = val;
-    }
-
+	/* Need to sort. */
+	if (arr->len > 0)
+		cmp = env->key_cmp(arr->arr[arr->len - 1].key, key);
+	
+	if (cmp > 0)
+	{
+		/* Binary search the array to find the key. */
+		while (high - low > 1)
+		{
+			next = (high + low) / 2;
+			if (env->key_cmp(arr->arr[next].key, key) > 0)
+				high = next;
+			else
+				low = next;
+		}
+		
+		if (low < 0) low = 0;
+		if (arr->len > 0 && env->key_cmp(arr->arr[low].key, key) < 0)
+			low++;
+	}
+	else
+		low = arr->len;
+	
+	
+	/* Insert into array. */
+	memmove (&arr->arr[low+1], &arr->arr[low], 
+			 (arr->len - low) * sizeof(keyval_t));
+	
+	arr->arr[low].key = key;
+	arr->arr[low].val = val;
     arr->len++;
 }
 
@@ -1949,33 +1794,32 @@ default_partition (int num_reduce_tasks, void* key, int key_size)
     return hash % num_reduce_tasks;
 }
 
+static void split (mr_env_t *env) {
+	struct timeval begin, end;
+	int num_map_tasks;
+	
+	get_time (&begin);
+	num_map_tasks = gen_map_tasks (env);
+	get_time (&end);
+	
+#ifdef TIMING
+    fprintf(stderr, "splitter time: %u\n", time_diff (&end, &begin));
+#endif
+	
+	assert (num_map_tasks >= 0);
+	
+	env->num_map_tasks = num_map_tasks;
+	mr_shared_env->num_map_tasks = num_map_tasks;
+}
+
 /**
  * Run map tasks and get intermediate values
  */
 static void map (mr_env_t* env)
 {
     thread_arg_t   th_arg;
-    int            num_map_tasks;
-	struct timeval begin, end;
 	
-	MASTER {
-		get_time (&begin);
-		num_map_tasks = gen_map_tasks (env);
-		get_time (&end);
-
-#ifdef TIMING
-    fprintf(stderr, "splitter time: %u\n", time_diff (&end, &begin));
-#endif
-
-	assert (num_map_tasks >= 0);
-		
-		env->num_map_tasks = num_map_tasks;
-		mr_shared_env->num_map_tasks = num_map_tasks;
-	}
-	BARRIER();
-	WORKER {
-		env->num_map_tasks = mr_shared_env->num_map_tasks;
-	}
+	env->num_map_tasks = mr_shared_env->num_map_tasks;
 	
 	if (env->num_map_tasks < env->l_num_map_threads) {
 		env->l_num_map_threads = env->num_map_tasks;
@@ -1983,13 +1827,10 @@ static void map (mr_env_t* env)
 		
     dprintf (OUT_PREFIX "num_map_tasks = %d\n", env->num_map_tasks);
 
-	WORKER {
-		mem_memset (&th_arg, 0, sizeof(thread_arg_t));
-		th_arg.task_type = TASK_TYPE_MAP;
-		
-		start_workers (env, &th_arg);
-	}
-	BARRIER();
+	mem_memset (&th_arg, 0, sizeof(thread_arg_t));
+	th_arg.task_type = TASK_TYPE_MAP;
+	
+	start_workers (env, &th_arg);
 }
 
 /**
@@ -1997,30 +1838,12 @@ static void map (mr_env_t* env)
  */
 static void reduce (mr_env_t* env)
 {
-    int            i;
     thread_arg_t   th_arg;
 
-	MASTER {
-		CHECK_ERROR (gen_reduce_tasks (env));
-	}
-	BARRIER();
-
-	WORKER {
-		mem_memset (&th_arg, 0, sizeof(thread_arg_t));
-		th_arg.task_type = TASK_TYPE_REDUCE;
-		
-		start_workers (env, &th_arg);
-	}
-	BARRIER();
-
-	MASTER {
-		/* Cleanup intermediate results. */
-		for (i = 0; i < env->intermediate_task_alloc_len; ++i)
-		{
-			shm_free (env->intermediate_vals[i]);
-		}
-		shm_free (env->intermediate_vals);
-	}
+	mem_memset (&th_arg, 0, sizeof(thread_arg_t));
+	th_arg.task_type = TASK_TYPE_REDUCE;
+	
+	start_workers (env, &th_arg);
 }
 
 /**
@@ -2030,58 +1853,45 @@ static void merge (mr_env_t* env)
 {
     thread_arg_t   th_arg;
 
-	MASTER {
-		mem_memset (&th_arg, 0, sizeof (thread_arg_t));
-		th_arg.task_type = TASK_TYPE_MERGE;
+	mem_memset (&th_arg, 0, sizeof (thread_arg_t));
+	th_arg.task_type = TASK_TYPE_MERGE;
+	
+	th_arg.merge_len = L_NUM_THREADS;
+	th_arg.merge_input = env->final_vals;
+	
+	if (th_arg.merge_len <= 1) {
+		/* Already merged, nothing to do here */
+		env->args->result->data = env->final_vals->arr;
+		env->args->result->length = env->final_vals->len;
 		
-		if (env->oneOutputQueuePerReduceTask) {
-			th_arg.merge_len = env->num_reduce_tasks;
-		} else {
-			th_arg.merge_len = env->g_num_reduce_threads;
-		}
-		th_arg.merge_input = env->final_vals;
+		shm_free(env->final_vals);
 		
-		if (th_arg.merge_len <= 1) {
-			/* Already merged, nothing to do here */
-			env->args->result->data = env->final_vals->arr;
-			env->args->result->length = env->final_vals->len;
-			
-			shm_free(env->final_vals);
-			
-			return;
-		}
-		
-		/* have work to merge! */
-		while (th_arg.merge_len > 1) {
-			th_arg.merge_round += 1;
-			
-			/* This is the worst case length, 
-			   depending on the value of num_merge_threads. */
-			env->merge_vals = (keyval_arr_t*) 
-				shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
-			CHECK_ERROR(env->merge_vals == NULL);
-
-			mr_shared_env->merge_vals = env->merge_vals;
-			
-			/* Run merge tasks and get merge values. */
-			start_workers (env, &th_arg);
-			
-			th_arg.merge_len = env->num_merge_threads;
-			
-			env->num_merge_threads /= 2;
-			if (env->num_merge_threads == 0)
-				env->num_merge_threads = 1;
-			
-			th_arg.merge_input = env->merge_vals;
-		}
+		return;
 	}
-	BARRIER();
-	WORKER {
-		env->merge_vals = mr_shared_env->merge_vals;
+	
+	/* have work to merge! */
+	while (th_arg.merge_len > 1) {
+		th_arg.merge_round += 1;
+		
+		/* This is the worst case length, 
+		   depending on the value of num_merge_threads. */
+		env->merge_vals = (keyval_arr_t*) 
+			shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
+		CHECK_ERROR(env->merge_vals == NULL);
+		
+		mr_shared_env->merge_vals = env->merge_vals;
+		
+		/* Run merge tasks and get merge values. */
+		start_workers (env, &th_arg);
+		
+		th_arg.merge_len = env->num_merge_threads;
+		
+		env->num_merge_threads /= 2;
+		if (env->num_merge_threads == 0)
+			env->num_merge_threads = 1;
+		
+		th_arg.merge_input = env->merge_vals;
 	}
-
-	env->args->result->length = env->merge_vals[0].len;
-	env->args->result->data = env->merge_vals[0].arr;
 }
 
 static inline mr_env_t* get_env (void)

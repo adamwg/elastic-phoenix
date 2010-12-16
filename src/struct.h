@@ -27,6 +27,11 @@
 #ifndef STRUCT_H_
 #define STRUCT_H_
 
+#include "map_reduce.h"
+#include "tunables.h"
+#include "queue.h"
+#include "taskQ.h"
+
 typedef struct _val_t
 {
     int                 size;
@@ -42,5 +47,54 @@ typedef struct
     void *key;
     val_t *vals;
 } keyvals_t;
+
+/* A key and a value pair. */
+typedef struct 
+{
+    /* TODO add static assertion to make sure this fits in L2 line */
+    union {
+        struct {
+            int         len;
+            int         alloc_len;
+            int         pos;
+            keyval_t    *arr;
+        };
+        char pad[L2_CACHE_LINE_SIZE];
+    };
+} keyval_arr_t;
+
+/* Array of keyvals_t. */
+typedef struct 
+{
+    int len;
+    int alloc_len;
+    int pos;
+    keyvals_t *arr;
+} keyvals_arr_t;
+
+/* Thread information.
+   Denotes the id and the assigned CPU of a thread. */
+typedef struct 
+{
+    union {
+        struct {
+            pthread_t tid;
+            int curr_task;
+        };
+        char pad[L2_CACHE_LINE_SIZE];
+    };
+} thread_info_t;
+
+typedef struct
+{
+    uintptr_t work_time;
+    uintptr_t user_time;
+    uintptr_t combiner_time;
+} thread_timing_t;
+
+typedef struct {
+    task_t          task;
+    queue_elem_t    queue_elem;
+} task_queued;
 
 #endif /* STRUCT_H_ */

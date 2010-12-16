@@ -40,12 +40,12 @@ struct iterator_t
     int                 size;
 };
 
-inline int iter_init (struct iterator_t *, int);
-inline void iter_reset (struct iterator_t *);
-inline void iter_rewind (struct iterator_t *);
-inline int iter_next_list (struct iterator_t *, keyvals_t **);
-inline void iter_finalize (struct iterator_t *);
+inline int iter_init (iterator_t *, int);
+inline void iter_reset (iterator_t *);
+inline void iter_rewind (iterator_t *);
+inline int iter_next_list (iterator_t *, keyvals_t **);
+inline void iter_finalize (iterator_t *);
 
-inline int iter_add (struct iterator_t *, keyvals_t *);
+inline int iter_add (iterator_t *, keyvals_t *);
 
 #endif /* ITERATOR_H_ */

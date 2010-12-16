@@ -27,6 +27,8 @@
 #ifndef LIST_H
 #define LIST_H
 
+#include <stdlib.h>
+
 /* doubly linked circular list with dummy node */
 typedef struct list_ent list_ent;
 typedef struct list list;

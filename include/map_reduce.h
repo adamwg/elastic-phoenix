@@ -29,6 +29,7 @@
 
 #include <sys/types.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 /* Standard data types for the function arguments and results */
  
@@ -39,8 +40,8 @@
  */
 typedef struct
 {
-   intptr_t length;
-   void *data;
+	intptr_t length;
+	void *data;
 	size_t actual_size;
 } map_args_t;
 
