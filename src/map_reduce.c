@@ -260,13 +260,25 @@ map_reduce(map_reduce_args_t *args) {
     fprintf (stderr, "library init: %u\n", time_diff (&end, &begin));
 #endif
 
-	/* Split the input data - in the master thread */
+	/* Prep and split - in the master thread */
 	MASTER {
+		if(args->prep != NULL) {
+			args->prep(args->task_data);
+		}
+		mr_shared_env->task_data = shm_alloc(args->task_data_size);
+		CHECK_ERROR(mr_shared_env->task_data == NULL);
+		memcpy(mr_shared_env->task_data, args->task_data, args->task_data_size);
+		
 		split (env);
 		/* Now we can let workers start, if they've started too soon */
 		pthread_spin_unlock(&mr_shared_env->bpl);
 	}
 	BARRIER();
+
+	/* Copy task data into the workers */
+	WORKER {
+		memcpy(args->task_data, mr_shared_env->task_data, args->task_data_size);
+	}
 	
     /* Run map tasks and get intermediate values - in the workers */
 	if(mr_shared_env->current_stage == TASK_TYPE_MAP) {
@@ -1082,7 +1094,7 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
     /* split until complete */
     cur_task_id = 0;
 	env->splitter_pos = 0;
-    while (env->splitter (env->args->task_data, env->chunk_size, &args, &mops))
+    while (env->splitter (env->args->task_data, env->chunk_size, &args, &mops) > 0)
     {
         task = (task_queued *)mem_malloc (sizeof (task_queued));
         task->task.id = cur_task_id;

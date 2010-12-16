@@ -45,6 +45,7 @@
 #define READ_AHEAD 32
 
 typedef struct {
+	char *fname;
 	int fd;
 	int data_bytes;
 	int offset;
@@ -227,38 +228,18 @@ int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_op
 	return 1;
 }
 
-int main(int argc, char *argv[]) {
-    
-    final_data_t hist_vals;
-    int i;
+int hist_prep(void *data_in) {
+	int i;
+	hist_data_t *data = (hist_data_t *)data_in;
     struct stat finfo;
 	char topdata[READ_AHEAD];
-    char * fname;
-    struct timeval begin, end;
 
-	hist_data_t hist_data;
-
-    get_time (&begin);
-
-    CHECK_ERROR (map_reduce_init (&argc, &argv));
-
-    // Make sure a filename is specified
-    if (argv[1] == NULL)
-    {
-        printf("USAGE: %s <bitmap filename>\n", argv[0]);
-        exit(1);
-    }
-    
-    fname = argv[1];
-
-    printf("Histogram: Running...\n");
-    
     // Read in the file
-    CHECK_ERROR((hist_data.fd = open(fname, O_RDONLY)) < 0);
+    CHECK_ERROR((data->fd = open(data->fname, O_RDONLY)) < 0);
 	// Get the file info (for file length)
-	CHECK_ERROR(fstat(hist_data.fd, &finfo) < 0);
+	CHECK_ERROR(fstat(data->fd, &finfo) < 0);
 
-	read(hist_data.fd, topdata, READ_AHEAD);
+	read(data->fd, topdata, READ_AHEAD);
 	
 	if ((topdata[0] != 'B') || (topdata[1] != 'M')) {
 		printf("File is not a valid bitmap file. Exiting\n");
@@ -283,9 +264,9 @@ int main(int argc, char *argv[]) {
 		swap_bytes((char *)(&data_offset), sizeof(data_offset));
 	}
 	
-	hist_data.data_bytes = (int)finfo.st_size - (int)data_offset;
-	printf("This file has %d bytes of image data, %d pixels\n", hist_data.data_bytes,
-		   hist_data.data_bytes / 3);
+	data->data_bytes = (int)finfo.st_size - (int)data_offset;
+	printf("This file has %d bytes of image data, %d pixels\n", data->data_bytes,
+		   data->data_bytes / 3);
 	
     // We use this global variable arrays to store the "key" for each histogram
     // bucket. This is to prevent memory leaks in the mapreduce scheduler
@@ -296,14 +277,39 @@ int main(int argc, char *argv[]) {
     }
 
 	// Seek the FD to the beginning of the data
-	lseek(hist_data.fd, data_offset, SEEK_SET);
+	lseek(data->fd, data_offset, SEEK_SET);
+	data->offset = 0;	
+}
 
-	hist_data.offset = 0;
+int main(int argc, char *argv[]) {
+    
+    final_data_t hist_vals;
+    int i;
+    struct timeval begin, end;
 
+	hist_data_t hist_data;
+
+    get_time (&begin);
+
+    CHECK_ERROR (map_reduce_init (&argc, &argv));
+
+    // Make sure a filename is specified
+    if (argv[1] == NULL)
+    {
+        printf("USAGE: %s <bitmap filename>\n", argv[0]);
+        exit(1);
+    }
+    
+    hist_data.fname = argv[1];
+
+    printf("Histogram: Running...\n");
+    
 	// Setup map reduce args
     map_reduce_args_t map_reduce_args;
     memset(&map_reduce_args, 0, sizeof(map_reduce_args_t));
     map_reduce_args.task_data = &hist_data;
+	map_reduce_args.task_data_size = sizeof(hist_data_t);
+	map_reduce_args.prep = hist_prep;
     map_reduce_args.map = hist_map;
     map_reduce_args.reduce = hist_reduce;
     map_reduce_args.combiner = hist_combiner;

@@ -67,6 +67,11 @@ typedef struct
 
 /* Scheduler function pointer type definitions */
 
+/* Prep allows for setup that should only happen once, which in non-dynamic
+ * Phoenix could happen in main.  The argument will be task_data.
+ */ 
+typedef int (*prep_t)(void *);
+
 /* Map function takes in map_args_t, as supplied by the splitter
  * and emit_intermediate() should be called on any key value pairs 
  * in the intermediate result set.
@@ -126,10 +131,12 @@ typedef struct
 {
     void * task_data;           /* The data to run MapReduce on.
                                  * If splitter is NULL, this should be an array. */
+	size_t task_data_size;      /* The actual size of the task_data structure */
     off_t data_size;            /* Total # of bytes of data */
     int unit_size;              /* # of bytes for one element 
                                  * (if necessary, on average) */
 
+	prep_t prep;                /* Prep function pointer, if NULL then noop */
     map_t map;                  /* Map function pointer, must be user defined */
     reduce_t reduce;            /* If NULL, identity reduce function is used, 
                                  * which emits a keyval pair for each val. */

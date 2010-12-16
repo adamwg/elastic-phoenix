@@ -36,6 +36,7 @@ typedef struct {
 	keyval_arr_t *final_vals;
 	keyval_arr_t *merge_vals;
 	void *result;
+	void *task_data;
 	int result_len;
 	mr_barrier_t mr_barrier;
 	int num_map_tasks;
