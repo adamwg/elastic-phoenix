@@ -239,11 +239,13 @@ int hist_prep(void *data_in) {
 	// Get the file info (for file length)
 	CHECK_ERROR(fstat(data->fd, &finfo) < 0);
 
-	read(data->fd, topdata, READ_AHEAD);
+	if(read(data->fd, topdata, READ_AHEAD) != READ_AHEAD) {
+		return(-1);
+	}
 	
 	if ((topdata[0] != 'B') || (topdata[1] != 'M')) {
-		printf("File is not a valid bitmap file. Exiting\n");
-		exit(1);
+		printf("File is not a valid bitmap file.\n");
+		return(-1);
 	}
 	
 	int swap;
@@ -255,8 +257,8 @@ int hist_prep(void *data_in) {
 	}
 	if (*bitsperpixel != 24) {     // ensure its 3 bytes per pixel
 		printf("Error: Invalid bitmap format - ");
-		printf("This application only accepts 24-bit pictures. Exiting\n");
-		exit(1);
+		printf("This application only accepts 24-bit pictures.\n");
+		return(-1);
 	}
 	
 	unsigned short data_offset = *(unsigned short *)(&(topdata[IMG_DATA_OFFSET_POS]));
@@ -278,7 +280,9 @@ int hist_prep(void *data_in) {
 
 	// Seek the FD to the beginning of the data
 	lseek(data->fd, data_offset, SEEK_SET);
-	data->offset = 0;	
+	data->offset = 0;
+	
+	return(0);
 }
 
 int main(int argc, char *argv[]) {

@@ -263,7 +263,7 @@ map_reduce(map_reduce_args_t *args) {
 	/* Prep and split - in the master thread */
 	MASTER {
 		if(args->prep != NULL) {
-			args->prep(args->task_data);
+			CHECK_ERROR(args->prep(args->task_data) != 0);
 		}
 		mr_shared_env->task_data = shm_alloc(args->task_data_size);
 		CHECK_ERROR(mr_shared_env->task_data == NULL);
