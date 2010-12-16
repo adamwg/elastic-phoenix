@@ -272,7 +272,6 @@ map_reduce(map_reduce_args_t *args) {
 		/* Now we can let workers start, if they've started too soon */
 		pthread_spin_unlock(&mr_shared_env->bpl);
 	}
-	BARRIER();
 
 	/* Copy task data into the workers */
 	WORKER {
@@ -492,7 +491,6 @@ env_init (map_reduce_args_t *args)
 		
 		mr_shared_env->final_vals = env->final_vals;
 	}
-	BARRIER();
 	WORKER {
 		env->intermediate_vals = mr_shared_env->intermediate_vals;
 		env->final_vals = mr_shared_env->final_vals;
