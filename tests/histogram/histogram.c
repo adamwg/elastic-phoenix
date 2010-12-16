@@ -234,6 +234,11 @@ int hist_prep(void *data_in) {
     struct stat finfo;
 	char topdata[READ_AHEAD];
 
+	if(data->fname == NULL) {
+		printf("Must specify filename.\n");
+		return(-1);
+	}
+	
     // Read in the file
     CHECK_ERROR((data->fd = open(data->fname, O_RDONLY)) < 0);
 	// Get the file info (for file length)
@@ -297,13 +302,6 @@ int main(int argc, char *argv[]) {
 
     CHECK_ERROR (map_reduce_init (&argc, &argv));
 
-    // Make sure a filename is specified
-    if (argv[1] == NULL)
-    {
-        printf("USAGE: %s <bitmap filename>\n", argv[0]);
-        exit(1);
-    }
-    
     hist_data.fname = argv[1];
 
     printf("Histogram: Running...\n");
