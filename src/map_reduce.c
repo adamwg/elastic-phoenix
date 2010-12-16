@@ -314,10 +314,9 @@ map_reduce(map_reduce_args_t *args) {
 #ifdef TIMING
 		fprintf (stderr, "reduce phase: %u\n", time_diff (&end, &begin));
 #endif
+		dprintf("In scheduler, all reduce tasks are done, now scheduling merge tasks\n");
 		BARRIER();
 	}
-
-    dprintf("In scheduler, all reduce tasks are done, now scheduling merge tasks\n");
 
 	/* Merge - in the master */
 	MASTER {
@@ -1276,43 +1275,26 @@ static int gen_map_tasks (mr_env_t* env)
 static int gen_reduce_tasks (mr_env_t* env)
 {
     int ret, tid;
-    int tasks_per_thread;
-    int tasks_leftover;
+    int num_reduce_tasks;
     uint64_t task_id;
     task_t reduce_task;
 
     tq_reset (env->taskQueue);
 
-    tasks_per_thread = env->num_reduce_tasks / L_NUM_THREADS;
-    tasks_leftover = env->num_reduce_tasks - 
-        tasks_per_thread * L_NUM_THREADS;
+    num_reduce_tasks = env->num_reduce_tasks;
 
     task_id = 0;
-    for (tid = 0; tid < L_NUM_THREADS; ++tid) {
-        int remaining_cur_thread_tasks;
-
-        remaining_cur_thread_tasks = tasks_per_thread;
-        if (tasks_leftover > 0) {
-            remaining_cur_thread_tasks += 1;
-            --tasks_leftover;
-        }
-        do {
-            if (task_id == env->num_reduce_tasks) {
-                return 0;
-            }
-
-            /* New task. */
-            reduce_task.id = task_id;
-
-            /* TODO: Implement locality optimization. */
-            ret = tq_enqueue_seq (env->taskQueue, &reduce_task,  -1);
-            if (ret < 0) {
-                return -1;
-            }
-            ++task_id;
-            --remaining_cur_thread_tasks;
-        } while (remaining_cur_thread_tasks);
-    }
+	while(num_reduce_tasks > 0) {
+		/* New task. */
+		reduce_task.id = task_id;
+		
+		ret = tq_enqueue_seq (env->taskQueue, &reduce_task,  -1);
+		if (ret < 0) {
+			return -1;
+		}
+		++task_id;
+		--num_reduce_tasks;
+	}
 
     return 0;
 }
