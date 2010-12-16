@@ -290,6 +290,11 @@ int hist_prep(void *data_in) {
 	return(0);
 }
 
+int hist_cleanup(void *data_in) {
+	hist_data_t *data = (hist_data_t *)data_in;
+    return(close (data->fd));
+}
+
 int main(int argc, char *argv[]) {
     
     final_data_t hist_vals;
@@ -312,6 +317,7 @@ int main(int argc, char *argv[]) {
     map_reduce_args.task_data = &hist_data;
 	map_reduce_args.task_data_size = sizeof(hist_data_t);
 	map_reduce_args.prep = hist_prep;
+	map_reduce_args.cleanup = hist_cleanup;
     map_reduce_args.map = hist_map;
     map_reduce_args.reduce = hist_reduce;
     map_reduce_args.combiner = hist_combiner;
@@ -380,9 +386,6 @@ int main(int argc, char *argv[]) {
 
 	map_reduce_cleanup(&map_reduce_args);
 	CHECK_ERROR (map_reduce_finalize ());
-
-    CHECK_ERROR (close (hist_data.fd) < 0);
-
     get_time (&end);
 
 #ifdef TIMING

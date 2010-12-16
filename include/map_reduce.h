@@ -67,10 +67,15 @@ typedef struct
 
 /* Scheduler function pointer type definitions */
 
-/* Prep allows for setup that should only happen once, which in non-dynamic
- * Phoenix could happen in main.  The argument will be task_data.
+/* Prep allows for setup that should only happen once, in the master, which in
+ * non-dynamic Phoenix could happen in main.  The argument will be task_data.
  */ 
 typedef int (*prep_t)(void *);
+
+/* Cleanup allows for cleanup that should only happen once, in the master, which
+ * in non-dynamic Phoenix could happen in main.  The argument will be task_data.
+ */ 
+typedef int (*cleanup_t)(void *);
 
 /* Map function takes in map_args_t, as supplied by the splitter
  * and emit_intermediate() should be called on any key value pairs 
@@ -140,6 +145,7 @@ typedef struct
     map_t map;                  /* Map function pointer, must be user defined */
     reduce_t reduce;            /* If NULL, identity reduce function is used, 
                                  * which emits a keyval pair for each val. */
+	cleanup_t cleanup;          /* Cleanup function pointer, if NULL then noop */
     combiner_t combiner;        /* If NULL, no combiner would be called. */                             
     splitter_t splitter;        /* If NULL, the array splitter is used.*/
     locator_t locator;          /* If NULL, no locality based optimization is

@@ -370,6 +370,9 @@ void map_reduce_cleanup (map_reduce_args_t *args) {
 			shm_free(args->result->data);
 			args->result->data = NULL;
 		}
+		if(args->cleanup != NULL) {
+			args->cleanup(args->task_data);
+		}
 	}
 }
 
