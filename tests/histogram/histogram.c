@@ -318,7 +318,7 @@ int main(int argc, char *argv[]) {
     map_reduce_args.splitter = hist_splitter;
     map_reduce_args.key_cmp = myshortcmp;
     
-    map_reduce_args.unit_size = 3;  // 3 bytes per pixel
+    map_reduce_args.unit_size = 3072;  // 3 bytes per pixel * 1024 pixels per map
 	hist_data.unit_size = 3;
     map_reduce_args.partition = NULL; // use default
     map_reduce_args.result = &hist_vals;
