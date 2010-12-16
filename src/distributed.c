@@ -37,18 +37,18 @@ void barrier(mr_barrier_t *bar) {
 	/* Increment the count */
 	bar->count += 1;
 
-	if(bar->count <= mr_shared_env->worker_counter * L_NUM_THREADS) {
+	if(bar->count <= mr_shared_env->worker_counter) {
 		/* If not everyone is done, unlock and wait */
 		pthread_spin_unlock(&bar->lock);
 		while(!bar->alldone);
 		/* When we're all done, atomically increment the extied counter */
 		__sync_fetch_and_add(&bar->exited, 1);
 		return;
-	} else if(bar->count == mr_shared_env->worker_counter * L_NUM_THREADS + 1) {
+	} else if(bar->count == mr_shared_env->worker_counter + 1) {
 		/* If we're the last one to get here, set the alldone flag */
 		bar->alldone = 1;
 		/* Wait for everyone else to exit */
-		while(bar->exited < mr_shared_env->worker_counter * L_NUM_THREADS);
+		while(bar->exited < mr_shared_env->worker_counter);
 
 		/* Reset the barrier */
 		bar->count = 0;
