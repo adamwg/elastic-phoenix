@@ -950,6 +950,7 @@ reduce_worker (void *args)
     mr_env_t                    *env = th_arg->env;
     reduce_worker_task_args_t   rwta;
     int                         num_map_threads;
+	int                         num_assigned = 0;
 #ifdef TIMING
     uintptr_t                   work_time = 0;
 #endif
@@ -975,6 +976,7 @@ reduce_worker (void *args)
 
     while (reduce_worker_do_next_task (env, thread_index, &rwta)) {
         user_time += rwta.run_time;
+		++num_assigned;
     }
 
     get_time (&work_end);
@@ -982,6 +984,8 @@ reduce_worker (void *args)
 #ifdef TIMING
     work_time = time_diff (&work_end, &work_begin);
 #endif
+	dprintf("Status: Total of %d tasks were assigned to cpu_id %d\n", 
+			num_assigned, th_arg->cpu_id);
 
     iter_finalize (&rwta.itr);
 
