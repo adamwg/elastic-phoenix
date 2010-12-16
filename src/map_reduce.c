@@ -179,7 +179,7 @@ map_reduce_init (int *argc, char ***argv)
 	int i;
 
 	/* Check that we got a master or worker argument */
-	if(*argc < 3 ||
+	if(*argc < 2 ||
 	   (strcasecmp((*argv)[1], "master") && strcasecmp((*argv)[1], "worker"))) {
 		
 		printf("Must specify master or worker as first argument and number of workers as second argument.\n");
@@ -196,12 +196,11 @@ map_reduce_init (int *argc, char ***argv)
 	}
 
 	/* Strip off the arguments */
-	for(i = 1; i < *argc - 2; i++) {
-		(*argv)[i] = (*argv)[i+2];
+	for(i = 1; i < *argc - 1; i++) {
+		(*argv)[i] = (*argv)[i+1];
 	}
-	(*argv)[*argc - 2] = NULL;
 	(*argv)[*argc - 1] = NULL;
-	*argc -= 2;
+	*argc -= 1;
 
 	/* Set up shared memory */
 	shm_init();
