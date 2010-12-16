@@ -216,8 +216,8 @@ map_reduce(map_reduce_args_t *args) {
     struct timeval begin, end;
     mr_env_t* env;
 
+	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), master_node);
 	MASTER {
-		shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), master_node);
 		mr_shared_env->worker_counter = 0;
 		barrier_init(&mr_shared_env->mr_barrier);
 		pthread_spin_init(&mr_shared_env->bpl, PTHREAD_PROCESS_SHARED);
