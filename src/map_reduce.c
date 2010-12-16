@@ -288,6 +288,12 @@ map_reduce(map_reduce_args_t *args) {
 #ifdef TIMING
 		fprintf (stderr, "map phase: %u\n", time_diff (&end, &begin));
 #endif
+		/* The master needs to wait for at least one worker to join before it
+		 * goes to the barrier.
+		 */
+		MASTER {
+			while(mr_shared_env->worker_counter == 0);
+		}
 		BARRIER();
 
 		dprintf("In scheduler, all map tasks are done, now scheduling reduce tasks\n");
