@@ -431,11 +431,9 @@ env_init (map_reduce_args_t *args)
     env->num_procs = num_procs;
 
     /* Determine the number of threads to schedule for each type of task. */
-	env->l_num_map_threads = (args->num_map_threads > 0) ? 
-		args->num_map_threads : num_procs;
+	env->l_num_map_threads = L_NUM_THREADS;
 	
-	env->l_num_reduce_threads = (args->num_reduce_threads > 0) ? 
-		args->num_reduce_threads : num_procs;
+	env->l_num_reduce_threads = L_NUM_THREADS;
 
 	MASTER {
 		/* Only the master merges */
@@ -966,7 +964,7 @@ reduce_worker (void *args)
     CHECK_ERROR (pthread_setspecific (emit_time_key, 0));
 #endif
 
-	num_map_threads = L_NUM_THREADS;
+	num_map_threads = MAX_WORKER_THREADS;
 
     /* Assuming !oneOutputQueuePerMapTask */
     CHECK_ERROR (iter_init (&rwta.itr, num_map_threads));
