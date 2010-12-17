@@ -167,10 +167,6 @@ static void map(mr_env_t* mr);
 static void reduce(mr_env_t* mr);
 static void merge(mr_env_t* mr);
 
-#ifndef INCREMENTAL_COMBINER
-static void run_combiner (mr_env_t* env, int thread_idx);
-#endif
-
 int 
 map_reduce_init (int *argc, char ***argv)
 {
@@ -773,12 +769,6 @@ map_worker (void *args)
 
     get_time (&begin);
 
-    /* Apply combiner to local map results. */
-#ifndef INCREMENTAL_COMBINER
-    if (env->combiner != NULL)
-        run_combiner (env, thread_index);
-#endif
-
     get_time (&end);
 
 #ifdef TIMING
@@ -1285,57 +1275,6 @@ static int gen_reduce_tasks (mr_env_t* env)
     return 0;
 }
 
-#ifndef INCREMENTAL_COMBINER
-static void run_combiner (mr_env_t* env, int thread_index)
-{
-    int i, j;
-    keyvals_arr_t *my_output;
-    keyvals_t *reduce_pos;
-    void *reduced_val;
-    iterator_t itr;
-    val_t *val, *next;
-	int g_thread_index = getGlobalThreadIndex(env, thread_index);
-
-    CHECK_ERROR (iter_init (&itr, 1));
-
-    for (i = 0; i < env->num_reduce_tasks; ++i)
-    {
-		
-        my_output = &env->intermediate_vals[g_thread_index][i];
-        for (j = 0; j < my_output->len; ++j)
-        {
-            reduce_pos = &(my_output->arr[j]);
-            if (reduce_pos->len == 0) continue;
-
-            CHECK_ERROR (iter_add (&itr, reduce_pos));
-
-            reduced_val = env->combiner (&itr);
-
-            /* Shed off trailing chunks. */
-            assert (reduce_pos->vals);
-            val = reduce_pos->vals->next_val;
-            while (val)
-            {
-                next = val->next_val;
-                shm_free (val);
-                val = next;
-            }
-
-            /* Update the entry. */
-            val = reduce_pos->vals;
-            val->next_insert_pos = 0;
-            val->next_val = NULL;
-            val->array[val->next_insert_pos++] = reduced_val;
-            reduce_pos->len = 1;
-
-            iter_reset (&itr);
-        }
-    }
-
-    iter_finalize (&itr);
-}
-#endif
-
 /** emit_intermediate()
  *  inserts the key, val pair into the intermediate array
  */
@@ -1460,6 +1399,7 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
                 arr->arr = (keyvals_t *)
                     shm_alloc (arr->alloc_len * sizeof (keyvals_t));
 				CHECK_ERROR(arr->arr == NULL);
+				memset(arr->arr, arr->alloc_len * sizeof(keyvals_t));
             }
             else
             {
@@ -1487,6 +1427,7 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
         new_vals = shm_alloc 
             (sizeof (val_t) + DEFAULT_VALS_ARR_LEN * sizeof (void *));
         assert (new_vals);
+		memset(new_vals, 0, sizeof(val_t) + DEFAULT_VALS_ARR_LEN * sizeof(void *));
 
         new_vals->size = DEFAULT_VALS_ARR_LEN;
         new_vals->next_insert_pos = 0;
@@ -1496,38 +1437,19 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
     }
     else if (insert_pos->vals->next_insert_pos >= insert_pos->vals->size)
     {
-#ifdef INCREMENTAL_COMBINER
-        if (env->combiner != NULL) {
-            iterator_t itr;
-            void *reduced_val;
-
-            CHECK_ERROR (iter_init (&itr, 1));
-            CHECK_ERROR (iter_add (&itr, insert_pos));
-
-            reduced_val = env->combiner (&itr);
-
-            insert_pos->vals->array[0] = reduced_val;
-            insert_pos->vals->next_insert_pos = 1;
-            insert_pos->len = 1;
-
-            iter_finalize (&itr);
-        } else {
-#endif
-            /* Need a new chunk. */
-            int alloc_size;
-
-            alloc_size = insert_pos->vals->size * 2;
-            new_vals = shm_alloc (sizeof (val_t) + alloc_size * sizeof (void *));
-            assert (new_vals);
-
-            new_vals->size = alloc_size;
-            new_vals->next_insert_pos = 0;
-            new_vals->next_val = insert_pos->vals;
-
-            insert_pos->vals = new_vals;
-#ifdef INCREMENTAL_COMBINER
-        }
-#endif
+		/* Need a new chunk. */
+		int alloc_size;
+		
+		alloc_size = insert_pos->vals->size * 2;
+		new_vals = shm_alloc (sizeof (val_t) + alloc_size * sizeof (void *));
+		assert (new_vals);
+		memset(new_vals, 0, sizeof(val_t) + alloc_size * sizeof(void *));
+		
+		new_vals->size = alloc_size;
+		new_vals->next_insert_pos = 0;
+		new_vals->next_val = insert_pos->vals;
+		
+		insert_pos->vals = new_vals;
     }
 
     insert_pos->vals->array[insert_pos->vals->next_insert_pos++] = val;
@@ -1551,6 +1473,7 @@ insert_keyval (mr_env_t* env, keyval_arr_t *arr, void *key, void *val)
             arr->alloc_len = DEFAULT_KEYVAL_ARR_LEN;
             arr->arr = (keyval_t*)shm_alloc(arr->alloc_len * sizeof(keyval_t));
 			CHECK_ERROR(arr->arr == NULL);
+			memset(arr->arr, 0, arr->alloc_len * sizeof(keyval_t));
         }
         else
         {
@@ -1616,6 +1539,7 @@ merge_results (mr_env_t* env, keyval_arr_t *vals, int length)
     env->merge_vals[g_curr_thread].arr = (keyval_t *)
         shm_alloc(sizeof(keyval_t) * total_num_keys);
 	CHECK_ERROR(env->merge_vals[g_curr_thread].arr == NULL);
+	memset(env->merge_vals[g_curr_thread].arr, 0, sizeof(keyval_t) * total_num_keys);
 
     for (data_idx = 0; data_idx < total_num_keys; data_idx++) {
         /* For each keyval_t. */
@@ -1855,6 +1779,7 @@ static void merge (mr_env_t* env)
 		env->merge_vals = (keyval_arr_t*) 
 			shm_alloc (env->num_merge_threads * sizeof(keyval_arr_t));
 		CHECK_ERROR(env->merge_vals == NULL);
+		memset(env->merge_vals, 0, env->num_merge_threads * sizeof(keyval_arr_t));
 		
 		mr_shared_env->merge_vals = env->merge_vals;
 		
