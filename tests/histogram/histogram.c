@@ -131,7 +131,7 @@ void hist_map(map_args_t *args)
     memset(&(green[0]), 0, sizeof(intptr_t) * 256);
     memset(&(blue[0]), 0, sizeof(intptr_t) * 256);
     
-    for (i = 0; i < (args->length) * 3; i+=3) 
+    for (i = 0; i < args->length; i+=3) 
     {
         val = &(data[i]);
         blue[*val]++;
