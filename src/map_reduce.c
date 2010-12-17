@@ -434,7 +434,7 @@ env_init (map_reduce_args_t *args)
 
 	MASTER {
 		/* Only the master merges */
-		env->num_merge_threads = L_NUM_THREADS;
+		env->num_merge_threads = NUM_REDUCE_TASKS / 2;
 		env->key_match_factor = (args->key_match_factor > 0) ? 
 			args->key_match_factor : 2;
 	}
@@ -1870,7 +1870,8 @@ static void merge (mr_env_t* env)
 		env->num_merge_threads /= 2;
 		if (env->num_merge_threads == 0)
 			env->num_merge_threads = 1;
-		
+
+		shm_free(th_arg.merge_input);
 		th_arg.merge_input = env->merge_vals;
 	}
 }
