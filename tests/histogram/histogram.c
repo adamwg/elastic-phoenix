@@ -122,6 +122,7 @@ void hist_map(map_args_t *args)
     intptr_t red[256];
     intptr_t green[256];
     intptr_t blue[256];
+	int cnt = 0;
 
     assert(args);
     unsigned char *data = (unsigned char *)args->data;
@@ -130,7 +131,7 @@ void hist_map(map_args_t *args)
     memset(&(red[0]), 0, sizeof(intptr_t) * 256);
     memset(&(green[0]), 0, sizeof(intptr_t) * 256);
     memset(&(blue[0]), 0, sizeof(intptr_t) * 256);
-    
+
     for (i = 0; i < args->length; i+=3) 
     {
         val = &(data[i]);
@@ -148,18 +149,23 @@ void hist_map(map_args_t *args)
         if (blue[i] > 0) {
             key = &(blue_keys[i]);
             emit_intermediate((void *)key, (void *)blue[i], (int)sizeof(short));
+			cnt++;
         }
         
         if (green[i] > 0) {
             key = &(green_keys[i]);
             emit_intermediate((void *)key, (void *)green[i], (int)sizeof(short));
+			cnt++;
         }
         
         if (red[i] > 0) {
             key = &(red_keys[i]);
             emit_intermediate((void *)key, (void *)red[i], (int)sizeof(short));
+			cnt++;
         }
     }
+
+	printf("Map length: %d, emitted: %d\n", args->length, cnt);
 }
 
 /** hist_reduce()
@@ -203,6 +209,7 @@ void *hist_combiner (iterator_t *itr)
 
 int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_ops_t *mem) {
 	hist_data_t *data = (hist_data_t *)data_in;
+	int r;
 
 	if(data->offset >= data->data_bytes) {
 		return 0;
@@ -216,11 +223,11 @@ int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_op
 
 	out->data = mem->alloc(out->length);
 	CHECK_ERROR (out->data == NULL);
-	out->length = read(data->fd, out->data, out->length);
+	r = read(data->fd, out->data, out->length);
 
-	if(data->offset + out->length < data->data_bytes && out->length % data->unit_size != 0) {
-		out->length -= out->length % data->unit_size;
-		lseek(data->fd, -(out->length % data->unit_size), SEEK_CUR);
+	if(r != out->length) {
+		out->length -= r % data->unit_size;
+		lseek(data->fd, -(r % data->unit_size), SEEK_CUR);
 	}
 
 	data->offset += out->length;
