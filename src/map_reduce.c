@@ -1003,6 +1003,7 @@ merge_worker (void *args)
     struct timeval  work_begin, work_end;
     thread_arg_t    *th_arg = (thread_arg_t *)args;
     int             thread_index = th_arg->thread_id;
+	int             cpu;
     mr_env_t        *env = th_arg->env;
 #ifdef TIMING
     uintptr_t       work_time = 0;
