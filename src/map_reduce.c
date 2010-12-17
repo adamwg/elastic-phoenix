@@ -90,7 +90,6 @@ typedef struct
     /* Callbacks. */
     map_t map;                      /* Map function. */
     reduce_t reduce;                /* Reduce function. */
-    combiner_t combiner;            /* Combiner function. */
     partition_t partition;          /* Partition function. */     
     splitter_t splitter;            /* Splitter function. */
     locator_t locator;              /* Locator function. */
@@ -456,7 +455,6 @@ env_init (map_reduce_args_t *args)
     /* Register callbacks. */
     env->map = args->map;
     env->reduce = (args->reduce) ? args->reduce : identity_reduce;
-    env->combiner = args->combiner;
     env->partition = (args->partition) ? args->partition : default_partition;
     env->splitter = (args->splitter) ? args->splitter : array_splitter;
     env->locator = args->locator;
@@ -575,7 +573,6 @@ start_workers (mr_env_t* env, thread_arg_t *th_arg)
 #ifdef TIMING
     uint64_t        work_time = 0;
     uint64_t        user_time = 0;
-    uint64_t        combiner_time = 0;
 #endif
 
     assert(th_arg != NULL);
@@ -613,7 +610,6 @@ start_workers (mr_env_t* env, thread_arg_t *th_arg)
     thread_timing_t *timing = (thread_timing_t *)ret_val;
     work_time += timing->work_time;
     user_time += timing->user_time;
-    combiner_time += timing->combiner_time;
     mem_free (timing);
 #endif
     mem_free (th_arg_array[0]);
@@ -629,7 +625,6 @@ start_workers (mr_env_t* env, thread_arg_t *th_arg)
         thread_timing_t *timing = (thread_timing_t *)ret_val;
         work_time += timing->work_time;
         user_time += timing->user_time;
-        combiner_time += timing->combiner_time;
         mem_free (timing);
 #endif
         mem_free (th_arg_array[thread_index]);
@@ -646,8 +641,6 @@ start_workers (mr_env_t* env, thread_arg_t *th_arg)
                                         work_time / num_threads);
             fprintf (stderr, "map user time: %" PRIu64 "\n", 
                                         user_time / num_threads);
-            fprintf (stderr, "map combiner time: %" PRIu64 "\n", 
-                                        combiner_time / num_threads);
             break;
 
         case TASK_TYPE_REDUCE:
@@ -731,7 +724,6 @@ map_worker (void *args)
 {
     assert (args != NULL);
 
-    struct timeval          begin, end;
     struct timeval          work_begin, work_end;
     uintptr_t               user_time = 0;
     thread_arg_t            *th_arg = (thread_arg_t *)args;
@@ -741,7 +733,6 @@ map_worker (void *args)
     map_worker_task_args_t  mwta;
 #ifdef TIMING
     uintptr_t               work_time = 0;
-    uintptr_t               combiner_time = 0;
 #endif
 
     env->tinfo[thread_index].tid = pthread_self();
@@ -767,14 +758,6 @@ map_worker (void *args)
     work_time = time_diff (&work_end, &work_begin);
 #endif
 
-    get_time (&begin);
-
-    get_time (&end);
-
-#ifdef TIMING
-    combiner_time = time_diff (&end, &begin);
-#endif
-
     dprintf("Status: Total of %d tasks were assigned to cpu_id %d\n", 
         num_assigned, th_arg->cpu_id);
 
@@ -786,7 +769,6 @@ map_worker (void *args)
     uintptr_t emit_time = (uintptr_t)pthread_getspecific (emit_time_key);
     timing->user_time = user_time - emit_time;
     timing->work_time = work_time - timing->user_time;
-    timing->combiner_time = combiner_time;
     return (void *)timing;
 #else
     return (void *)0;
