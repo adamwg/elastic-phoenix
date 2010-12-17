@@ -25,7 +25,7 @@ taskQ_t *tq_init() {
 	return the_tq;
 }
 
-int tq_enqueue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
+int tq_enqueue (taskQ_t* tq, task_t *task) {
 	/* Acquire lock */
 	lock_acquire((mr_lock_t)&tq->lock);
 
@@ -45,7 +45,7 @@ int tq_enqueue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
 	return 0;
 }
 
-int tq_enqueue_seq (taskQ_t* tq, task_t *task, int lgrp) {
+int tq_enqueue_seq (taskQ_t* tq, task_t *task) {
 	/* Full */
 	if((tq->head + 1) % N_TASKS == tq->tail) {
 		return -1;
@@ -58,7 +58,7 @@ int tq_enqueue_seq (taskQ_t* tq, task_t *task, int lgrp) {
 	return 0;
 }
 
-int tq_dequeue (taskQ_t* tq, task_t *task, int lgrp, int tid) {
+int tq_dequeue (taskQ_t* tq, task_t *task) {
 	/* Acquire lock */
 	lock_acquire((mr_lock_t)&tq->lock);
 

@@ -164,8 +164,6 @@ void hist_map(map_args_t *args)
 			cnt++;
         }
     }
-
-	printf("Map length: %d, emitted: %d\n", args->length, cnt);
 }
 
 /** hist_reduce()

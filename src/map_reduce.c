@@ -158,7 +158,7 @@ static void *reduce_worker (void *);
 static void *merge_worker (void *);
 
 static int gen_map_tasks (mr_env_t* env);
-static int gen_map_tasks_split(mr_env_t* env, queue_t* q);
+static int gen_map_tasks_split(mr_env_t* env);
 static int gen_reduce_tasks (mr_env_t* env);
 
 static void split(mr_env_t* mr);
@@ -680,12 +680,11 @@ static bool map_worker_do_next_task (
     int             curr_task;
     task_t          map_task;
     map_args_t      thread_func_arg;
-    int             lgrp = args->lgrp;
 
     alloc_len = env->intermediate_task_alloc_len;
 
     /* Get new map task. */
-    if (tq_dequeue (env->taskQueue, &map_task, lgrp, thread_index) == 0) {
+    if (tq_dequeue (env->taskQueue, &map_task) == 0) {
         /* no more map tasks */
         return false;
     }
@@ -796,10 +795,9 @@ static bool reduce_worker_do_next_task (
     task_t          reduce_task;
     int             num_map_threads;
     int             curr_thread;
-    int             lgrp = args->lgrp;
 
     /* Get the next reduce task. */
-    if (tq_dequeue (env->taskQueue, &reduce_task, lgrp, thread_index) == 0) {
+    if (tq_dequeue (env->taskQueue, &reduce_task) == 0) {
         /* No more reduce tasks. */
         return false;
     }
@@ -1045,11 +1043,11 @@ merge_worker (void *args)
  * @param q     queue to place tasks into
  * @return number of tasks generated, or 0 on error
  */
-static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
+static int gen_map_tasks_split (mr_env_t* env)
 {
     int                 cur_task_id;
     map_args_t          args;
-    task_queued         *task = NULL;
+    task_t              task;
 
 	static splitter_mem_ops_t mops = { .alloc = &shm_alloc, .free = &shm_free };
 
@@ -1058,32 +1056,18 @@ static int gen_map_tasks_split (mr_env_t* env, queue_t* q)
 	env->splitter_pos = 0;
     while (env->splitter (env->args->task_data, env->chunk_size, &args, &mops) > 0)
     {
-        task = (task_queued *)mem_malloc (sizeof (task_queued));
-        task->task.id = cur_task_id;
-		task->task.data = (uint64_t)args.data;
-        task->task.len = (uint64_t)args.length;
-        queue_push_back (q, &task->queue_elem);
+        task.id = cur_task_id;
+		task.data = (uint64_t)args.data;
+        task.len = (uint64_t)args.length;
+        tq_enqueue_seq (env->taskQueue, &task);
 
         ++cur_task_id;
-    }
-
-    if (task == NULL) {
-        /* not enough memory, undo what's been done, error out */
-        queue_elem_t    *queue_elem;
-
-        while (queue_pop_front (q, &queue_elem))
-        {
-            task = queue_entry (queue_elem, task_queued, queue_elem);
-            assert (task != NULL);
-            mem_free (task);
-        }
-
-        return 0;
     }
 
     return cur_task_id;
 }
 
+#if 0
 /**
  * User provided own splitter function but did not supply a locator function.
  * Nothing to do here about locality, so just try to put consecutive tasks
@@ -1125,7 +1109,7 @@ static int gen_map_tasks_distribute_lgrp (
             task = queue_entry (queue_elem, task_queued, queue_elem);
             assert (task != NULL);
 
-            if (tq_enqueue_seq (env->taskQueue, &task->task, lgrp) < 0) {
+            if (tq_enqueue_seq (env->taskQueue, &task->task) < 0) {
                 mem_free (task);
                 return -1;
             }
@@ -1171,7 +1155,7 @@ static int gen_map_tasks_distribute_locator (
         }
 
         task->task.v[3] = lgrp;         /* For debugging. */
-        if (tq_enqueue_seq (env->taskQueue, &task->task, lgrp) != 0) {
+        if (tq_enqueue_seq (env->taskQueue, &task->task) != 0) {
             mem_free (task);
             return -1;
         }
@@ -1200,6 +1184,7 @@ static int gen_map_tasks_distribute (
 
     return 0;
 }
+#endif
 
 /**
  * Generate all map tasks and queue them up
@@ -1207,25 +1192,13 @@ static int gen_map_tasks_distribute (
  */
 static int gen_map_tasks (mr_env_t* env)
 {
-    int             ret;
     int             num_map_tasks;
-    queue_t         temp_queue;
-    int             num_map_threads;
 
-    queue_init (&temp_queue);
-
-    num_map_tasks = gen_map_tasks_split (env, &temp_queue);
+    tq_reset (env->taskQueue);
+    num_map_tasks = gen_map_tasks_split (env);
     if (num_map_tasks <= 0) {
         return -1;
     }
-
-    num_map_threads = L_NUM_THREADS;
-    if (num_map_tasks < num_map_threads)
-        num_map_threads = num_map_tasks;
-    tq_reset (env->taskQueue);
-
-    ret = gen_map_tasks_distribute (env, num_map_tasks, &temp_queue);
-    if (ret == 0) ret = num_map_tasks;
 
     return num_map_tasks;
 }
@@ -1246,7 +1219,7 @@ static int gen_reduce_tasks (mr_env_t* env)
 		/* New task. */
 		reduce_task.id = task_id;
 		
-		ret = tq_enqueue_seq (env->taskQueue, &reduce_task,  -1);
+		ret = tq_enqueue_seq (env->taskQueue, &reduce_task);
 		if (ret < 0) {
 			return -1;
 		}
