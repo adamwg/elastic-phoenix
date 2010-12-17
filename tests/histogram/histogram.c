@@ -275,14 +275,6 @@ int hist_prep(void *data_in) {
 	printf("This file has %d bytes of image data, %d pixels\n", data->data_bytes,
 		   data->data_bytes / 3);
 	
-    // We use this global variable arrays to store the "key" for each histogram
-    // bucket. This is to prevent memory leaks in the mapreduce scheduler
-	for (i = 0; i < 256; i++) {
-        blue_keys[i] = i;
-        green_keys[i] = 1000 + i;
-        red_keys[i] = 2000 + i;
-    }
-
 	// Seek the FD to the beginning of the data
 	lseek(data->fd, data_offset, SEEK_SET);
 	data->offset = 0;
@@ -304,6 +296,14 @@ int main(int argc, char *argv[]) {
 	hist_data_t hist_data;
 
     get_time (&begin);
+
+    // We use this global variable arrays to store the "key" for each histogram
+    // bucket. This is to prevent memory leaks in the mapreduce scheduler
+	for (i = 0; i < 256; i++) {
+        blue_keys[i] = i;
+        green_keys[i] = 1000 + i;
+        red_keys[i] = 2000 + i;
+    }
 
     CHECK_ERROR (map_reduce_init (&argc, &argv));
 

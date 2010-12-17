@@ -79,9 +79,9 @@ typedef struct
     /* Parameters. */
     int num_map_tasks;              /* # of map tasks. */
     int num_reduce_tasks;           /* # of reduce tasks. */
+	int num_merge_threads;          /* # of threads for merge tasks. */
     int chunk_size;                 /* # of units of data for each map task. */
     int num_procs;                  /* # of processors to run on. */
-    int num_merge_threads;          /* # of threads for merge tasks. */
     float key_match_factor;         /* # of values likely to be matched 
                                        to the same key. */
 
@@ -434,7 +434,7 @@ env_init (map_reduce_args_t *args)
 
 	MASTER {
 		/* Only the master merges */
-		env->num_merge_threads = NUM_REDUCE_TASKS / 2;
+		env->num_merge_threads = L_NUM_THREADS;
 		env->key_match_factor = (args->key_match_factor > 0) ? 
 			args->key_match_factor : 2;
 	}
@@ -1010,19 +1010,11 @@ merge_worker (void *args)
 
     env->tinfo[thread_index].tid = pthread_self();
 
-	/* NOTE: this doesn't work in distributed mode, since there are
-	 * g_map_threads mergers, and only l_map_threads CPUs. --awg */
     /* Bind thread.
-       Spread out the merge workers as much as possible.
-    if (env->oneOutputQueuePerReduceTask)
-        cpu = th_arg->cpu_id * (1 << (th_arg->merge_round - 1));
-    else
-        cpu = th_arg->cpu_id * (1 << th_arg->merge_round);
-        
+       Spread out the merge workers as much as possible. */
+	cpu = th_arg->cpu_id;
     CHECK_ERROR (proc_bind_thread (cpu) != 0);
-	*/
-
-    CHECK_ERROR (pthread_setspecific (env_key, env));
+	CHECK_ERROR (pthread_setspecific (env_key, env));
 
     /* Assumes num_merge_threads is modified before each call. */
     int length = th_arg->merge_len / env->num_merge_threads;
@@ -1042,7 +1034,7 @@ merge_worker (void *args)
         keyval_arr_t *vals = &th_arg->merge_input[pos];
 
         dprintf("Thread %d: cpu_id -> %d - Started\n", 
-                    thread_index, th_arg->cpu_id);
+				thread_index, th_arg->cpu_id);
 
         get_time (&work_begin);
         merge_results (th_arg->env, vals, length + (thread_index < modlen));
@@ -1056,10 +1048,8 @@ merge_worker (void *args)
                     thread_index, th_arg->cpu_id);
     }
 
-    /* Unbind thread.
-	 * Again, doesn't work --awg
+    /* Unbind thread. */
     CHECK_ERROR (proc_unbind_thread () != 0);
-    */
 
 #ifdef TIMING
     thread_timing_t *timing = calloc (1, sizeof (thread_timing_t));
