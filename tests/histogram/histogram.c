@@ -204,7 +204,7 @@ void *hist_combiner (iterator_t *itr)
 int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_ops_t *mem) {
 	hist_data_t *data = (hist_data_t *)data_in;
 
-	if(data->offset > data->data_bytes - data->unit_size) {
+	if(data->offset >= data->data_bytes) {
 		return 0;
 	}
 
