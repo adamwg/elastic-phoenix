@@ -229,7 +229,6 @@ int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_op
 }
 
 int hist_prep(void *data_in) {
-	int i;
 	hist_data_t *data = (hist_data_t *)data_in;
     struct stat finfo;
 	char topdata[READ_AHEAD];

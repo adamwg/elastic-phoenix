@@ -434,7 +434,10 @@ env_init (map_reduce_args_t *args)
 
 	MASTER {
 		/* Only the master merges */
-		env->num_merge_threads = L_NUM_THREADS;
+		env->num_merge_threads = (mr_shared_env->worker_counter * L_NUM_THREADS) / 2;
+		/* Assign at least one merge thread. */
+		env->num_merge_threads = MAX(env->num_merge_threads, 1);
+		
 		env->key_match_factor = (args->key_match_factor > 0) ? 
 			args->key_match_factor : 2;
 	}
@@ -450,6 +453,8 @@ env_init (map_reduce_args_t *args)
     if (env->chunk_size <= 0) env->chunk_size = 1;
 
 	env->num_reduce_tasks = NUM_REDUCE_TASKS;
+    env->num_merge_threads = MIN (
+		env->num_merge_threads, env->num_reduce_tasks / 2);
 	env->intermediate_task_alloc_len = MAX_WORKER_THREADS;
 
     /* Register callbacks. */
