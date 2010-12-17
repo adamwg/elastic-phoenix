@@ -1399,7 +1399,7 @@ insert_keyval_merged (mr_env_t* env, keyvals_arr_t *arr, void *key, void *val)
                 arr->arr = (keyvals_t *)
                     shm_alloc (arr->alloc_len * sizeof (keyvals_t));
 				CHECK_ERROR(arr->arr == NULL);
-				memset(arr->arr, arr->alloc_len * sizeof(keyvals_t));
+				memset(arr->arr, 0, arr->alloc_len * sizeof(keyvals_t));
             }
             else
             {
