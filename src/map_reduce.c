@@ -158,7 +158,6 @@ static void *reduce_worker (void *);
 static void *merge_worker (void *);
 
 static int gen_map_tasks (mr_env_t* env);
-static int gen_map_tasks_split(mr_env_t* env);
 static int gen_reduce_tasks (mr_env_t* env);
 
 static void split(mr_env_t* mr);
@@ -1036,6 +1035,7 @@ merge_worker (void *args)
 #endif
 }
 
+#if 0
 /**
  * Split phase of map task generation, creates all tasks and throws in single
  * queue.
@@ -1067,7 +1067,6 @@ static int gen_map_tasks_split (mr_env_t* env)
     return cur_task_id;
 }
 
-#if 0
 /**
  * User provided own splitter function but did not supply a locator function.
  * Nothing to do here about locality, so just try to put consecutive tasks
@@ -1192,15 +1191,26 @@ static int gen_map_tasks_distribute (
  */
 static int gen_map_tasks (mr_env_t* env)
 {
-    int             num_map_tasks;
+    map_args_t          args;
+    task_t              task;
 
     tq_reset (env->taskQueue);
-    num_map_tasks = gen_map_tasks_split (env);
-    if (num_map_tasks <= 0) {
-        return -1;
+	static splitter_mem_ops_t mops = { .alloc = &shm_alloc, .free = &shm_free };
+
+    /* split until complete */
+    cur_task_id = 0;
+	env->splitter_pos = 0;
+    while (env->splitter (env->args->task_data, env->chunk_size, &args, &mops) > 0)
+    {
+        task.id = cur_task_id;
+		task.data = (uint64_t)args.data;
+        task.len = (uint64_t)args.length;
+        tq_enqueue_seq (env->taskQueue, &task);
+
+        ++cur_task_id;
     }
 
-    return num_map_tasks;
+	return cur_task_id;
 }
 
 static int gen_reduce_tasks (mr_env_t* env)
