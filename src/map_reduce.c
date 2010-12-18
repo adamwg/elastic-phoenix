@@ -1206,7 +1206,10 @@ static int gen_map_tasks (mr_env_t* env)
         task.id = cur_task_id;
 		task.data = (uint64_t)args.data;
         task.len = (uint64_t)args.length;
-        tq_enqueue_seq (env->taskQueue, &task);
+        if(tq_enqueue_seq (env->taskQueue, &task) < 0) {
+			printf("Task queue full!\n");
+			return -1;
+		}
 
         ++cur_task_id;
     }
