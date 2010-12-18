@@ -1193,6 +1193,7 @@ static int gen_map_tasks (mr_env_t* env)
 {
     map_args_t          args;
     task_t              task;
+	int                 cur_task_id;
 
     tq_reset (env->taskQueue);
 	static splitter_mem_ops_t mops = { .alloc = &shm_alloc, .free = &shm_free };
