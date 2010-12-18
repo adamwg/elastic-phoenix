@@ -303,11 +303,11 @@ int main(int argc, char *argv[]) {
 
     // We use this global variable arrays to store the "key" for each histogram
     // bucket. This is to prevent memory leaks in the mapreduce scheduler
-//	for (i = 0; i < 256; i++) {
-//        blue_keys[i] = i;
-//        green_keys[i] = 1000 + i;
-//        red_keys[i] = 2000 + i;
-//    }
+	for (i = 0; i < 256; i++) {
+        blue_keys[i] = i;
+        green_keys[i] = 1000 + i;
+        red_keys[i] = 2000 + i;
+    }
 
     CHECK_ERROR (map_reduce_init (&argc, &argv));
 
