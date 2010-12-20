@@ -487,6 +487,7 @@ env_init (map_reduce_args_t *args)
     mr_env_t    *env;
     int         i;
     int         num_procs;
+	int         num_units;
 
     env = mem_malloc (sizeof (mr_env_t));
     if (env == NULL) {
@@ -545,8 +546,10 @@ env_init (map_reduce_args_t *args)
 	env->chunk_size = 1;
 	/* But this might result in a lot of map tasks, in which case do enough to
 	 * fill but not overflow our task queue. */
-	if(args->data_size / env->chunk_size > N_TASKS) {
-		env->chunk_size = args->data_size / N_TASKS + 1;
+	num_units = args->data_size / args->unit_size;
+	if(num_units > N_TASKS - 1) {
+		env->chunk_size = num_units / (N_TASKS - 1) + 1;
+		printf("There are %d units.  Do %d at a time.\n", num_units, env->chunk_size);
 	}
 
 	env->num_reduce_tasks = NUM_REDUCE_TASKS;
