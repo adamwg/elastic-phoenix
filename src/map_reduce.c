@@ -322,6 +322,13 @@ map_reduce(map_reduce_args_t *args) {
 
     get_time (&begin);
 
+	/* Prep - in the master */
+	MASTER {
+		if(args->prep != NULL) {
+			CHECK_ERROR(args->prep(args->task_data) != 0);
+		}
+	}
+
     /* Initialize environment. */
     env = env_init (args);
     if (env == NULL) {
@@ -348,11 +355,8 @@ map_reduce(map_reduce_args_t *args) {
     fprintf (stderr, "library init: %u\n", time_diff (&end, &begin));
 #endif
 
-	/* Prep and split - in the master thread */
+	/* Split - in the master thread */
 	MASTER {
-		if(args->prep != NULL) {
-			CHECK_ERROR(args->prep(args->task_data) != 0);
-		}
 		mr_shared_env->task_data = shm_alloc(args->task_data_size);
 		CHECK_ERROR(mr_shared_env->task_data == NULL);
 		memcpy(mr_shared_env->task_data, args->task_data, args->task_data_size);
