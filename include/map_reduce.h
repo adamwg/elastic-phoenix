@@ -68,9 +68,12 @@ typedef struct
 /* Scheduler function pointer type definitions */
 
 /* Prep allows for setup that should only happen once, in the master, which in
- * non-dynamic Phoenix could happen in main.  The argument will be task_data.
+ * non-dynamic Phoenix could happen in main.  The arguments will be task_data
+ * and the args passed to map_reduce.
  */ 
-typedef int (*prep_t)(void *);
+struct map_reduce_args_t;
+typedef struct map_reduce_args_t map_reduce_args_t;
+typedef int (*prep_t)(void *, map_reduce_args_t *);
 
 /* Cleanup allows for cleanup that should only happen once, in the master, which
  * in non-dynamic Phoenix could happen in main.  The argument will be task_data.
@@ -132,7 +135,7 @@ typedef int (*partition_t)(int, void *, int);
 typedef int (*key_cmp_t)(const void *, const void*);
 
 /* The arguments to operate the runtime. */
-typedef struct
+struct map_reduce_args_t
 {
     void * task_data;           /* The data to run MapReduce on.
                                  * If splitter is NULL, this should be an array. */
@@ -183,7 +186,7 @@ typedef struct
     float key_match_factor;     /* Magic number that describes the ratio of 
     * the input data size to the output data size.
     * This is used as a hint. */
-} map_reduce_args_t;
+};
 
 /* Runtime defined functions. */
 

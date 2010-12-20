@@ -233,7 +233,7 @@ int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_op
 	return 1;
 }
 
-int hist_prep(void *data_in) {
+int hist_prep(void *data_in, map_reduce_args_t *args) {
 	hist_data_t *data = (hist_data_t *)data_in;
     struct stat finfo;
 	char topdata[READ_AHEAD];
@@ -276,6 +276,7 @@ int hist_prep(void *data_in) {
 	}
 	
 	data->data_bytes = (int)finfo.st_size - (int)data_offset;
+    args->data_size = data->data_bytes;
 	printf("This file has %d bytes of image data, %d pixels\n", data->data_bytes,
 		   data->data_bytes / 3);
 	
@@ -334,8 +335,6 @@ int main(int argc, char *argv[]) {
     map_reduce_args.partition = NULL; // use default
     map_reduce_args.result = &hist_vals;
     
-    map_reduce_args.data_size = hist_data.data_bytes;
-
     map_reduce_args.L1_cache_size = atoi(GETENV("MR_L1CACHESIZE"));//1024 * 512;
     map_reduce_args.num_map_threads = atoi(GETENV("MR_NUMTHREADS"));//8;
     map_reduce_args.num_reduce_threads = atoi(GETENV("MR_NUMTHREADS"));//16;

@@ -325,7 +325,7 @@ map_reduce(map_reduce_args_t *args) {
 	/* Prep - in the master */
 	MASTER {
 		if(args->prep != NULL) {
-			CHECK_ERROR(args->prep(args->task_data) != 0);
+			CHECK_ERROR(args->prep(args->task_data, args) != 0);
 		}
 	}
 
