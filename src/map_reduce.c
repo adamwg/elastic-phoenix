@@ -541,7 +541,13 @@ env_init (map_reduce_args_t *args)
        until there is no more data left. */
     env->num_map_tasks = 0;
 
-    if (env->chunk_size <= 0) env->chunk_size = 1;
+	/* Map one unit at a time by default. */
+	env->chunk_size = 1;
+	/* But this might result in a lot of map tasks, in which case do enough to
+	 * fill but not overflow our task queue. */
+	if(args->data_size / env->chunk_size > N_TASKS) {
+		env->chunk_size = args->data_size / N_TASKS + 1;
+	}
 
 	env->num_reduce_tasks = NUM_REDUCE_TASKS;
     env->num_merge_threads = MIN (
