@@ -25,34 +25,34 @@
 */ 
 
 #include <assert.h>
-#include <pthread.h>
-#include <sys/unistd.h>
-#include <sys/types.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
-#include <string.h>
-#include <strings.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/unistd.h>
+#include <unistd.h>
 
+#include "defines.h"
+#include "iterator.h"
+#include "locality.h"
 #include "map_reduce.h"
 #include "memory.h"
 #include "processor.h"
-#include "defines.h"
+#include "queue.h"
 #include "scheduler.h"
+#include "stddefines.h"
+#include "struct.h"
 #include "synch.h"
 #include "taskQ.h"
-#include "queue.h"
-#include "stddefines.h"
-#include "iterator.h"
-#include "locality.h"
-#include "struct.h"
 #include "tpool.h"
 #include "tunables.h"
 
@@ -165,39 +165,136 @@ static void map(mr_env_t* mr);
 static void reduce(mr_env_t* mr);
 static void merge(mr_env_t* mr);
 
+static void USAGE() {
+	printf("Dynamic Phoenix arguments:\n"
+		   "-h and -v\n"
+		   "\tAre we running on the host (-h) or in a VM (-v)?\n"
+		   "\tExactly one must be specified.\n"
+		   "-m and -w\n"
+		   "\tAre we the master (-m) process or a worker (-w)?\n"
+		   "\tExactly one must be specified.\n"
+		   "-d <name>\n"
+		   "\tWhere to access shared memory.  A POSIX memory object name if -h is\n"
+		   "\tspecified, or the path the the Nahanni UIO device if -v is specified.\n"
+		   "\tRequired.\n"
+		   "-s <size>\n"
+		   "\tThe size of the shared memory, in megabytes."
+		   "\tRequired.\n"
+		   "--\n"
+		   "\tEnd of Phoenix arguments.  Any arguments after -- are given to the application.\n");
+}
+
 int 
 map_reduce_init (int *argc, char ***argv)
 {
 	int i;
+	int opt;
+	int vm = -1;
+	char *shm_dev = NULL;
+	size_t shm_size = 0;
+
+	master_node = -1;
+	
+	while((opt = getopt(*argc, *argv, "wmhvd:s:")) != -1) {
+		switch(opt) {
+		case 'w':
+			if(master_node < 0) {
+				dprintf("Initializing as a worker.\n");
+				master_node = 0;
+			} else {
+				printf("Must specify exactly one of -w or -m\n");
+				USAGE();
+				return(-1);
+			}
+			break;
+		case 'm':
+			if(master_node < 0) {
+				dprintf("Initializing as the master.\n");
+				master_node = 1;
+			} else {
+				printf("Must specify exactly one of -w or -m\n");
+				USAGE();
+				return(-1);
+			}
+			break;
+
+		case 'h':
+			if(vm < 0) {
+				vm = 0;
+			} else {
+				printf("Must specify exactly one of -v or -h\n");
+				USAGE();
+				return(-1);
+			}
+			break;
+		case 'v':
+			if(vm < 0) {
+				vm = 1;
+			} else {
+				printf("Must specify exactly one of -v or -h\n");
+				USAGE();
+				return(-1);
+			}
+			break;
+
+		case 'd':
+			shm_dev = optarg;
+			break;
+
+		case 's':
+			shm_size = atol(optarg);
+			if(shm_size < 0) {
+				printf("Invalid SHM size '%s'\n", optarg);
+				return(-1);
+			} else if(shm_size > 131072) {
+				printf("Warning: Your SHM seems very large (%lu MB).\n", shm_size);
+			}
+			break;
+			
+		default:
+			USAGE();
+			return(-1);
+		}
+	}
 
 	/* Check that we got a master or worker argument */
-	if(*argc < 2 ||
-	   (strcasecmp((*argv)[1], "master") && strcasecmp((*argv)[1], "worker"))) {
-		
-		printf("Must specify master or worker as first argument and number of workers as second argument.\n");
+	if(master_node < 0) {
+		printf("Must specify one of -w or -m.\n");
+		USAGE();
+		return(-1);
+	}
+
+	if(vm < 0) {
+		printf("Must specify one of -v or -h.\n");
+		USAGE();
+		return(-1);
+	}
+
+	if(shm_dev == NULL) {
+		printf("Must specify a SHM file or device.\n");
+		USAGE();
+		return(-1);
+	}
+
+	if(shm_size == 0) {
+		printf("Must specify a SHM size.\n");
+		USAGE();
 		return(-1);
 	}
 	
-	/* Check whether we're the master or the worker */
-	if(strcasecmp((*argv)[1], "master") == 0) {
-		printf("map_reduce initializing as master\n");
-		master_node = 1;
-	} else if(strcasecmp((*argv)[1], "worker") == 0) {
-		printf("map_reduce initializing as worker\n");
-		master_node = 0;
-	}
-
-	/* Strip off the arguments */
-	for(i = 1; i < *argc - 1; i++) {
-		(*argv)[i] = (*argv)[i+1];
-	}
-	(*argv)[*argc - 1] = NULL;
-	*argc -= 1;
-
-	/* Set up shared memory */
-	shm_init();
-	/* The shared env lives just after the task queue */
+	/* Map the shared memory and initialize the allocator */
+	shm_init(vm, shm_dev, shm_size);
+	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t),
+				   shm_size - TQ_SIZE - sizeof(mr_shared_env_t),
+				   master_node);
+	/* The shared environment lives just after the task queue */
 	mr_shared_env = shm_base + TQ_SIZE;
+
+	/* Strip off the arguments we consumed */
+	for(i = 0; i < *argc - optind; i++) {
+		(*argv)[i+1] = (*argv)[optind+i];
+	}
+	*argc -= (optind + 1);
 
 	return(0);
 }
@@ -208,7 +305,6 @@ map_reduce(map_reduce_args_t *args) {
     struct timeval begin, end;
     mr_env_t* env;
 
-	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t), SHM_SIZE - TQ_SIZE - sizeof(mr_shared_env_t), master_node);
 	MASTER {
 		mr_shared_env->worker_counter = 0;
 		barrier_init(&mr_shared_env->mr_barrier);
@@ -1034,156 +1130,6 @@ merge_worker (void *args)
     return (void *)0;
 #endif
 }
-
-#if 0
-/**
- * Split phase of map task generation, creates all tasks and throws in single
- * queue.
- *
- * @param q     queue to place tasks into
- * @return number of tasks generated, or 0 on error
- */
-static int gen_map_tasks_split (mr_env_t* env)
-{
-    int                 cur_task_id;
-    map_args_t          args;
-    task_t              task;
-
-	static splitter_mem_ops_t mops = { .alloc = &shm_alloc, .free = &shm_free };
-
-    /* split until complete */
-    cur_task_id = 0;
-	env->splitter_pos = 0;
-    while (env->splitter (env->args->task_data, env->chunk_size, &args, &mops) > 0)
-    {
-        task.id = cur_task_id;
-		task.data = (uint64_t)args.data;
-        task.len = (uint64_t)args.length;
-        tq_enqueue_seq (env->taskQueue, &task);
-
-        ++cur_task_id;
-    }
-
-    return cur_task_id;
-}
-
-/**
- * User provided own splitter function but did not supply a locator function.
- * Nothing to do here about locality, so just try to put consecutive tasks
- * in the same task queue.
- */
-static int gen_map_tasks_distribute_lgrp (
-    mr_env_t* env, int num_map_tasks, queue_t* q)
-{
-    queue_elem_t    *queue_elem;
-    int             tasks_per_lgrp;
-    int             tasks_leftover;
-    int             num_lgrps;
-    int             lgrp;
-
-    num_lgrps = L_NUM_THREADS / loc_get_lgrp_size();
-    if (num_lgrps == 0) num_lgrps = 1;
-
-    tasks_per_lgrp = num_map_tasks / num_lgrps;
-    tasks_leftover = num_map_tasks - tasks_per_lgrp * num_lgrps;
-
-    /* distribute tasks across locality groups */
-    for (lgrp = 0; lgrp < num_lgrps; ++lgrp)
-    {
-        int remaining_cur_lgrp_tasks;
-
-        remaining_cur_lgrp_tasks = tasks_per_lgrp;
-        if (tasks_leftover > 0) {
-            remaining_cur_lgrp_tasks++;
-            tasks_leftover--;
-        }
-        do {
-            task_queued *task;
-
-            if (queue_pop_front (q, &queue_elem) == 0) {
-                /* queue is empty, everything is distributed */
-                break;
-            }
-
-            task = queue_entry (queue_elem, task_queued, queue_elem);
-            assert (task != NULL);
-
-            if (tq_enqueue_seq (env->taskQueue, &task->task) < 0) {
-                mem_free (task);
-                return -1;
-            }
-
-            mem_free (task);
-            remaining_cur_lgrp_tasks--;
-        } while (remaining_cur_lgrp_tasks);
-
-        if (remaining_cur_lgrp_tasks != 0) {
-            break;
-        }
-    }
-
-    return 0;
-}
-
-/**
- * We can try to queue tasks based on locality info
- */
-static int gen_map_tasks_distribute_locator (
-    mr_env_t* env, int num_map_tasks, queue_t* q)
-{
-    queue_elem_t    *queue_elem;
-
-    while (queue_pop_front (q, &queue_elem))
-    {
-        task_queued *task;
-        int         lgrp;
-        map_args_t  args;
-
-        task = queue_entry (queue_elem, task_queued, queue_elem);
-        assert (task != NULL);
-
-        args.length = task->task.len;
-        args.data = (void*)task->task.data;
-
-        if (env->locator != NULL) {
-            void    *addr;
-            addr = env->locator (&args);
-            lgrp = loc_mem_to_lgrp (addr);
-        } else {
-            lgrp = loc_mem_to_lgrp (args.data);
-        }
-
-        task->task.v[3] = lgrp;         /* For debugging. */
-        if (tq_enqueue_seq (env->taskQueue, &task->task) != 0) {
-            mem_free (task);
-            return -1;
-        }
-
-        mem_free (task);
-    }
-
-    return 0;
-}
-
-/**
- * Distributes tasks to threads
- * @param num_map_tasks number of map tasks in queue
- * @param q queue of tasks to distribute
- * @return 0 on success, less than 0 on failure
- */
-static int gen_map_tasks_distribute (
-    mr_env_t* env, int num_map_tasks, queue_t* q)
-{
-    if ((env->splitter != array_splitter) && 
-        (env->locator == NULL)) {
-        return gen_map_tasks_distribute_lgrp (env, num_map_tasks, q);
-    } else {
-        return gen_map_tasks_distribute_locator (env, num_map_tasks, q);
-    }
-
-    return 0;
-}
-#endif
 
 /**
  * Generate all map tasks and queue them up

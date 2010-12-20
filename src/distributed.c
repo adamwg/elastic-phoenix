@@ -12,13 +12,27 @@
 #include "stddefines.h"
 #include "synch.h"
 
-void shm_init() {
+void shm_init(bool in_vm, char *shm_device, size_t shm_size) {
 	int fd;
 
-	/* Map the shmem region */
-	fd = open(SHM_DEV, O_RDWR);
+	/* Open the SHM device */
+	if(in_vm) {
+		fd = open(shm_device, O_RDWR);
+	} else {
+		fd = shm_open(shm_device, O_RDWR, 0);
+	}
+	
 	CHECK_ERROR(fd < 0);
-	shm_base = mmap(SHM_LOC, SHM_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 1*getpagesize());
+
+	/* Map the SHM into memory at our preferred location */
+	if(in_vm) {
+		shm_base = mmap(SHM_LOC, shm_size*1024L*1024L, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 1*getpagesize());
+	} else {
+		shm_base = mmap(SHM_LOC, shm_size*1024L*1024L, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+	}
+
+	/* We rely on the SHM being mapped to the same location in every process, and
+	 * we will die if this is violated. */
 	CHECK_ERROR(shm_base != SHM_LOC);
 }
 
