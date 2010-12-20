@@ -286,7 +286,7 @@ map_reduce_init (int *argc, char ***argv)
 	/* Map the shared memory and initialize the allocator */
 	shm_init(vm, shm_dev, shm_size);
 	shm_alloc_init(shm_base + TQ_SIZE + sizeof(mr_shared_env_t),
-				   shm_size - TQ_SIZE - sizeof(mr_shared_env_t),
+				   shm_size*1024L*1024L - TQ_SIZE - sizeof(mr_shared_env_t),
 				   master_node);
 	/* The shared environment lives just after the task queue */
 	mr_shared_env = shm_base + TQ_SIZE;

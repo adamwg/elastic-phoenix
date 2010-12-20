@@ -12,8 +12,6 @@
 #include "shm_alloc.h"
 #include "stddefines.h"
 
-/* The Nahanni device */
-#define SHM_DEV        "/dev/uio0"
 /* The number of blocks */
 #define N_BLOCKS       (256*1024)
 /* The number of blocks required for a given size */
