@@ -49,9 +49,9 @@ void barrier(mr_barrier_t *bar) {
 	/* Lock the barrier */
 	pthread_spin_lock(&bar->lock);
 
-	/* The first enterer should lock the BPL so that new workers can't init
+	/* The first worker should lock the BPL so that new workers can't init
 	 * while the barrier is happening. */
-	if(bar->count == 0) {
+	if(!master_node && bar->count == 0) {
 		pthread_spin_lock(&mr_shared_env->bpl);
 		bplheld = 1;
 	}
