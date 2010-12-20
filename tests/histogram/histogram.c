@@ -309,7 +309,8 @@ int main(int argc, char *argv[]) {
         red_keys[i] = 2000 + i;
     }
 
-    CHECK_ERROR (map_reduce_init (&argc, &argv));
+	i = map_reduce_init(&argc, &argv);
+    CHECK_ERROR (i < 0);
 
     hist_data.fname = argv[1];
 

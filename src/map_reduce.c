@@ -178,10 +178,11 @@ static void USAGE() {
 		   "\tspecified, or the path the the Nahanni UIO device if -v is specified.\n"
 		   "\tRequired.\n"
 		   "-s <size>\n"
-		   "\tThe size of the shared memory, in megabytes."
+		   "\tThe size of the shared memory, in megabytes.\n"
 		   "\tRequired.\n"
 		   "--\n"
-		   "\tEnd of Phoenix arguments.  Any arguments after -- are given to the application.\n");
+		   "\tEnd of Phoenix arguments.\n"
+		   "\tAny arguments after -- are given to the application.\n");
 }
 
 int 
