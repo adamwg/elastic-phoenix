@@ -210,9 +210,10 @@ int hist_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_op
 	int r;
 
 	if(req_units < 0) {
-		close(data->fd);
-		data->fd = open(data->fname, O_RDONLY);
-		out->offset = 0;
+		if(data->offset > 0) {
+			lseek(data->fd, -(data->offset), SEEK_CUR);
+			data->offset = 0;
+		}
 		return(0);
 	}
 
