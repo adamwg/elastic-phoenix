@@ -115,12 +115,12 @@ int wordcount_splitter(void *data_in, int req_units, map_args_t *out,
     assert(out);
     
 	assert(data->fpos >= 0);
-    assert(data->data_bytes >= 0);
+    assert(data->fsize >= 0);
     assert(data->fd > 0);
     assert(req_units);
 
 	// At the end of the file.
-	if(data->fpos >= data->data_bytes) {
+	if(data->fpos >= data->fsize) {
 		return(0);
 	}
 
@@ -135,7 +135,7 @@ tryagain:
     
     // Find the last space in the read data.
 	for(c = &((char *)out->data)[out->length - 1], less = 0;
-		c >= out->data &&
+		c >= (char *)out->data &&
 			*c != ' ' && *c != '\t' &&
 			*c != '\r' && *c != '\n';
 		c--, less--);
@@ -265,7 +265,7 @@ int wc_prep(void *data_in, map_reduce_args_t *args) {
     // Get the file info (for file length)
     CHECK_ERROR(fstat(data->fd, &finfo) < 0);
 	args->data_size = finfo.st_size;
-	data->data_bytes = finfo.st_size;
+	data->fsize = finfo.st_size;
 
 	return(0);
 }
