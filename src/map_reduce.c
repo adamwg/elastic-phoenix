@@ -1650,6 +1650,7 @@ static void split (mr_env_t *env) {
 		// Increase the chunk size in case we fill the queue this time.
 		env->chunk_size += 5;
 	} while(num_map_tasks < 0);
+	printf("Done splitting data.\n");
 		
 	env->num_map_tasks = num_map_tasks;
 	mr_shared_env->num_map_tasks = num_map_tasks;

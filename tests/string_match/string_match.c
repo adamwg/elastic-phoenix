@@ -147,6 +147,7 @@ tryagain:
     /* Assign the required number of bytes */
     out->length = (req_bytes < available_bytes)? req_bytes:available_bytes;
     out->data = mem->alloc(out->length);
+	CHECK_ERROR(out->data == NULL);
 	out->length = read(data->fd_keys, out->data, out->length);
 	data->offset += out->length;
 
