@@ -293,7 +293,7 @@ int main(int argc, char *argv[])
     printf("Wordcount: Running...\n");
 
     // Setup splitter args
-    wc_data.unit_size = 3; // approx 3 bytes per word
+    wc_data.unit_size = 5; // approx 3 bytes per word
     wc_data.fpos = 0;
 
     // Setup map reduce args

@@ -1172,7 +1172,6 @@ static int gen_map_tasks (mr_env_t* env)
 		task.data = (uint64_t)args.data;
         task.len = (uint64_t)args.length;
         if(tq_enqueue_seq (env->taskQueue, &task) < 0) {
-			printf("Task queue full at %d tasks!\n", cur_task_id);
 			return -1;
 		}
 
@@ -1632,17 +1631,20 @@ default_partition (int num_reduce_tasks, void* key, int key_size)
 static void split (mr_env_t *env) {
 	struct timeval begin, end;
 	int num_map_tasks;
-	
-	get_time (&begin);
-	num_map_tasks = gen_map_tasks (env);
-	get_time (&end);
-	
+
+	do {
+		printf("Splitting data with chunk_size = %d\n", env->chunk_size);
+		get_time (&begin);
+		num_map_tasks = gen_map_tasks (env);
+		get_time (&end);
+		
 #ifdef TIMING
-    fprintf(stderr, "splitter time: %u\n", time_diff (&end, &begin));
+		fprintf(stderr, "splitter time: %u\n", time_diff (&end, &begin));
 #endif
-	
-	assert (num_map_tasks >= 0);
-	
+		// Increase the chunk size in case we fill the queue this time.
+		env->chunk_size += 5;
+	} while(num_map_tasks < 0);
+		
 	env->num_map_tasks = num_map_tasks;
 	mr_shared_env->num_map_tasks = num_map_tasks;
 }

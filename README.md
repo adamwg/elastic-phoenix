@@ -103,9 +103,11 @@ shared memory needed for a given job will depend heavily on the application.
 
 Additionally, the task queue is in shared memory and has a limited number of
 task slots.  The framework will try to split data such that the task queue is
-not exhausted, but this relies on the application-provided data unit size.  If
-your application estimates the unit size, it is better to estimate low than
-high.
+not exhausted, but this relies on the application-provided data unit size.  The
+framework will increase the number of units in each split until it successfully
+splits all the data, allowing for applications that estimate the unit size
+(e.g. word count).  Choosing a good estimate will reduce the number of
+iterations required to split your data.
 
 We have successfully run the following examples with 4GB of shared memory:
 
