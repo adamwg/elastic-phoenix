@@ -119,13 +119,13 @@ static int linear_regression_partition(int reduce_tasks, void* key, int key_size
 static void linear_regression_reduce(void *key_in, iterator_t *itr)
 {
     register long long sum = 0;
-    long long *val;
+	long long val;
 
     assert (itr);
 
     while (iter_next (itr, (void **)&val))
     {
-        sum += *val;
+        sum += val;
         free (val);
     }
 
