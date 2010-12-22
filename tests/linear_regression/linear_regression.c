@@ -41,7 +41,6 @@
 #include "map_reduce.h"
 #include "stddefines.h"
 
-
 typedef struct {
     char x;
     char y;
@@ -54,6 +53,14 @@ enum {
     KEY_SYY,
     KEY_SXY,
 };
+
+typedef struct {
+	char *fname;
+	int fd;
+	int data_bytes;
+	int offset;
+	int unit_size;
+} lr_data_t;
 
 static int intkeycmp(const void *v1, const void *v2)
 {
@@ -158,14 +165,60 @@ static void *linear_regression_combiner (iterator_t *itr)
     return (void *)sumptr;
 }
 
+int lr_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_ops_t *mem) {
+	lr_data_t *data = (lr_data_t *)data_in;
+	int r;
+
+	if(data->offset >= data->data_bytes) {
+		return 0;
+	}
+
+	if(data->data_bytes - data->offset < req_units * data->unit_size) {
+		out->length = data->data_bytes - data->offset;
+	} else {
+		out->length = req_units * data->unit_size;
+	}
+
+	out->data = mem->alloc(out->length);
+	CHECK_ERROR (out->data == NULL);
+	r = read(data->fd, out->data, out->length);
+
+	if(r != out->length) {
+		out->length -= r % data->unit_size;
+		lseek(data->fd, -(r % data->unit_size), SEEK_CUR);
+	}
+
+	data->offset += out->length;
+
+	return 1;
+}
+
+int lr_prep(void *data_in, map_reduce_args_t *args) {
+    struct stat finfo;
+	lr_data_t *data = (lr_data_t *)data_in;
+
+	// Read in the file
+    CHECK_ERROR((data->fd = open(data->fname, O_RDONLY)) < 0);
+    // Get the file info (for file length)
+    CHECK_ERROR(fstat(data->fd, &finfo) < 0);
+    args->data_size = finfo.st_size - (finfo.st_size % args->unit_size);
+
+	data->data_bytes = finfo.st_size - (finfo.st_size % args->unit_size);
+	data->offset = 0;
+	
+	return(0);
+}
+
+int lr_cleanup(void *data_in) {
+	lr_data_t *data = (lr_data_t *)data_in;
+	return(close(data->fd));
+}
+
 int main(int argc, char *argv[]) {
 
     final_data_t final_vals;
-    int fd;
-    char * fdata;
-    char * fname;
-    struct stat finfo;
     int i;
+	lr_data_t lr_data;
 
     struct timeval starttime,endtime;
     struct timeval begin, end;
@@ -181,41 +234,28 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     
-    fname = argv[1];
+    lr_data.fname = argv[1];
 
     printf("Linear Regression: Running...\n");
     
-    // Read in the file
-    CHECK_ERROR((fd = open(fname, O_RDONLY)) < 0);
-    // Get the file info (for file length)
-    CHECK_ERROR(fstat(fd, &finfo) < 0);
-#ifndef NO_MMAP
-    // Memory map the file
-    CHECK_ERROR((fdata = mmap(0, finfo.st_size + 1, 
-        PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0)) == NULL);
-#else
-    uint64_t ret;
-
-    fdata = (char *)malloc (finfo.st_size);
-    CHECK_ERROR (fdata == NULL);
-
-    ret = read (fd, fdata, finfo.st_size);
-    CHECK_ERROR (ret != finfo.st_size);
-#endif
-
     // Setup scheduler args
     map_reduce_args_t map_reduce_args;
     memset(&map_reduce_args, 0, sizeof(map_reduce_args_t));
-    map_reduce_args.task_data = fdata; // Array to regress
+    map_reduce_args.task_data = &lr_data; // Array to regress
+	map_reduce_args.task_data_size = sizeof(lr_data_t);
+	map_reduce_args.prep = lr_prep;
+	map_reduce_args.cleanup = lr_cleanup;
     map_reduce_args.map = linear_regression_map;
     map_reduce_args.reduce = linear_regression_reduce; // Identity Reduce
     map_reduce_args.combiner = linear_regression_combiner;
-    map_reduce_args.splitter = NULL; // Array splitter;
+    map_reduce_args.splitter = lr_splitter; // Array splitter;
     map_reduce_args.key_cmp = intkeycmp;
+	
     map_reduce_args.unit_size = sizeof(POINT_T);
+	lr_data.unit_size = sizeof(POINT_T);
     map_reduce_args.partition = linear_regression_partition; 
     map_reduce_args.result = &final_vals;
-    map_reduce_args.data_size = finfo.st_size - (finfo.st_size % map_reduce_args.unit_size);
+	
     map_reduce_args.L1_cache_size = atoi(GETENV("MR_L1CACHESIZE"));//1024 * 512;
     map_reduce_args.num_map_threads = atoi(GETENV("MR_NUMTHREADS"));//8;
     map_reduce_args.num_reduce_threads = atoi(GETENV("MR_NUMTHREADS"));//16;
@@ -242,8 +282,6 @@ int main(int argc, char *argv[]) {
 #endif
 
     get_time (&begin);
-
-    CHECK_ERROR (map_reduce_finalize ());
 
     long long n;
     double a, b, xbar, ybar, r2;
@@ -282,7 +320,7 @@ int main(int argc, char *argv[]) {
     double SYY= (double)SYY_ll;
     double SXY= (double)SXY_ll;
 
-    n = (long long) finfo.st_size / sizeof(POINT_T); 
+    n = (long long) lr_data.data_bytes / sizeof(POINT_T); 
     b = (double)(n*SXY - SX*SY) / (n*SXX - SX*SX);
     a = (SY_ll - b*SX_ll) / n;
     xbar = (double)SX_ll / n;
@@ -305,14 +343,8 @@ int main(int argc, char *argv[]) {
     printf("\tSYY  = %lld\n", SYY_ll);
     printf("\tSXY  = %lld\n", SXY_ll);
 
-    free(final_vals.data);
-
-#ifndef NO_MMAP
-    CHECK_ERROR(munmap(fdata, finfo.st_size + 1) < 0);
-#else
-    free (fdata);
-#endif
-    CHECK_ERROR(close(fd) < 0);
+	map_reduce_cleanup(&map_reduce_args);
+    CHECK_ERROR (map_reduce_finalize ());
 
     get_time (&end);
 

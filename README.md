@@ -110,6 +110,8 @@ high.
 We have successfully run the following examples with 4GB of shared memory:
 
 * Histogram with 1.4GB of input.
+* Word Count with 100MB of input.
+
 
 ### Multiple MapReduce Jobs
 
