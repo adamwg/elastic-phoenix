@@ -68,14 +68,10 @@ char *key4 = "whotheman";
  *  Function to get the next word
  */
 char *getnextline(char** output, int max_len, char* file, int *outlen) {
-	if(*file == '\0') {
-		return NULL;
-	}
-	
     for(*output = file; *output < file + max_len; *output += 1) {
-        if(**output == '\0' || **output == '\n') {
+        if(**output == '\0') {
 			*outlen = *output - file;
-			return NULL;
+			return *output;
         }
         if(**output == '\r') {
 			*outlen = *output - file;
@@ -189,11 +185,11 @@ void string_match_map(map_args_t *args)
     char *cur_word;
 
 	char cur_word_final[MAX_REC_LEN];
-    memset(cur_word_final, 0, MAX_REC_LEN);
 
-    while((total_len <= args->length) &&
+    while((total_len < args->length) &&
 		  (key_file = getnextline(&cur_word, MAX_REC_LEN, key_file, &key_len))) {
 		
+		memset(cur_word_final, 0, MAX_REC_LEN);
         compute_hashes(cur_word, cur_word_final);
 
         if(!strcmp(key1_final, cur_word_final)) {
@@ -212,7 +208,6 @@ void string_match_map(map_args_t *args)
 			emit_intermediate(cur_word, (void *)1, key_len);
 		}
 		
-		memset(cur_word_final, 0, MAX_REC_LEN);
         total_len += key_len;
     }
 }
