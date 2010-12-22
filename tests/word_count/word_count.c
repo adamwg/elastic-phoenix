@@ -45,6 +45,8 @@
 #define DEFAULT_DISP_NUM 10
 
 typedef struct {
+	char *fname;
+	size_t fsize;
 	off_t fpos;
     off_t flen;
     int fd;
@@ -255,63 +257,69 @@ void *wordcount_combiner (iterator_t *itr)
     return (void *)sum;
 }
 
+int wc_prep(void *data_in, map_reduce_args_t *args) {
+    struct stat finfo;
+	wc_data_t *data = (wc_data_t *)data_in;
+
+    // Read in the file
+    CHECK_ERROR((data->fd = open(data->fname, O_RDONLY)) < 0);
+    // Get the file info (for file length)
+    CHECK_ERROR(fstat(data->fd, &finfo) < 0);
+	args->data_size = finfo.st_size;
+
+	return(0);
+}
+
+int wc_cleanup(void *data_in) {
+	wc_data_t *data = (wc_data_t *)data_in;
+    return(close(data->fd));
+}
+
 int main(int argc, char *argv[]) 
 {
     final_data_t wc_vals;
     int i;
-    int fd;
-    int disp_num;
-    struct stat finfo;
-    char * fname, * disp_num_str;
+	wc_data_t wc_data;
 
     struct timeval starttime,endtime;
 
     get_time (&begin);
 
-    CHECK_ERROR (map_reduce_init (&argc, &argv));
+    i = map_reduce_init (&argc, &argv);
+	CHECK_ERROR(i < 0);
 
     // Make sure a filename is specified
-    if (argv[1] == NULL)
-    {
+    if (argv[1] == NULL) {
         printf("USAGE: %s <filename> [Top # of results to display]\n", argv[0]);
         exit(1);
     }
 
-    fname = argv[1];
-    disp_num_str = argv[2];
+    wc_data.fname = argv[1];
 
     printf("Wordcount: Running...\n");
 
-    // Read in the file
-    CHECK_ERROR((fd = open(fname, O_RDONLY)) < 0);
-    // Get the file info (for file length)
-    CHECK_ERROR(fstat(fd, &finfo) < 0);
-
-    // Get the number of results to display
-    CHECK_ERROR((disp_num = (disp_num_str == NULL) ? 
-      DEFAULT_DISP_NUM : atoi(disp_num_str)) <= 0);
-
     // Setup splitter args
-    wc_data_t wc_data;
-    wc_data.unit_size = 5; // approx 5 bytes per word
+    wc_data.unit_size = 3; // approx 3 bytes per word
     wc_data.fpos = 0;
-    wc_data.flen = finfo.st_size;
-    wc_data.fd = fd;
 
     // Setup map reduce args
     map_reduce_args_t map_reduce_args;
     memset(&map_reduce_args, 0, sizeof(map_reduce_args_t));
     map_reduce_args.task_data = &wc_data;
-    map_reduce_args.map = wordcount_map;
+	map_reduce_args.task_data_size = sizeof(wc_data_t);
+	
+	map_reduce_args.prep = wc_prep;
+	map_reduce_args.cleanup = wc_cleanup;
+	map_reduce_args.map = wordcount_map;
     map_reduce_args.reduce = wordcount_reduce;
     map_reduce_args.combiner = wordcount_combiner;
     map_reduce_args.splitter = wordcount_splitter;
-    map_reduce_args.locator = wordcount_locator;
     map_reduce_args.key_cmp = mystrcmp;
+	
     map_reduce_args.unit_size = wc_data.unit_size;
     map_reduce_args.partition = NULL; // use default
     map_reduce_args.result = &wc_vals;
-    map_reduce_args.data_size = finfo.st_size;
+	
     map_reduce_args.L1_cache_size = atoi(GETENV("MR_L1CACHESIZE"));//1024 * 1024 * 2;
     map_reduce_args.num_map_threads = atoi(GETENV("MR_NUMTHREADS"));//8;
     map_reduce_args.num_reduce_threads = atoi(GETENV("MR_NUMTHREADS"));//16;
@@ -345,22 +353,16 @@ int main(int argc, char *argv[])
 
     printf("Wordcount: MapReduce Completed\n");
 
-    printf("Wordcount: Calling MapReduce Scheduler Sort\n");
+    qsort(wc_vals.data, wc_vals.length, sizeof(keyval_t), mykeyvalcmp);
 
-    mapreduce_sort(wc_vals.data, wc_vals.length, sizeof(keyval_t), mykeyvalcmp);
-
-    printf("Wordcount: MapReduce Completed\n");
-
-    dprintf("\nWordcount: Results (TOP %d):\n", disp_num);
-    for (i = 0; i < disp_num && i < wc_vals.length; i++)
-    {
-      keyval_t * curr = &((keyval_t *)wc_vals.data)[i];
-      dprintf("%15s - %" PRIdPTR "\n", (char *)curr->key, (intptr_t)curr->val);
+    dprintf("\nWordcount: Results (TOP %d):\n", DEFAULT_DISP_NUM);
+    for (i = 0; i < DEFAULT_DISP_NUM && i < wc_vals.length; i++) {
+		keyval_t * curr = &((keyval_t *)wc_vals.data)[i];
+		dprintf("%15s - %" PRIdPTR "\n", (char *)curr->key, (intptr_t)curr->val);
     }
 
 	map_reduce_cleanup(&map_reduce_args);
     CHECK_ERROR (map_reduce_finalize ());
-    CHECK_ERROR(close(fd) < 0);
 
     get_time (&end);
 
