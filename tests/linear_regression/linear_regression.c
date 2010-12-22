@@ -52,7 +52,6 @@ enum {
     KEY_SXX,
     KEY_SYY,
     KEY_SXY,
-	KEY_N
 };
 
 typedef struct {
@@ -101,7 +100,6 @@ static void linear_regression_map(map_args_t *args)
         sxy += x * y;
     }
 
-	emit_intermediate((void*)KEY_N, (void *)args->length, sizeof(void*));
     emit_intermediate((void*)KEY_SX,  (void*)sx,  sizeof(void*)); 
     emit_intermediate((void*)KEY_SXX, (void*)sxx, sizeof(void*)); 
     emit_intermediate((void*)KEY_SY,  (void*)sy,  sizeof(void*)); 
@@ -271,7 +269,6 @@ int main(int argc, char *argv[]) {
     get_time (&begin);
 
     long long n;
-	long long N = 0;
     double a, b, xbar, ybar, r2;
     long long SX_ll = 0, SY_ll = 0, SXX_ll = 0, SYY_ll = 0, SXY_ll = 0;
     // ADD UP RESULTS
@@ -281,9 +278,6 @@ int main(int argc, char *argv[]) {
         keyval_t * curr = &final_vals.data[i];
         switch ((intptr_t)curr->key)
         {
-		case KEY_N:
-			N = (long long)curr->val;
-			break;
         case KEY_SX:
              SX_ll = ((long long)curr->val);
              break;
@@ -329,7 +323,6 @@ int main(int argc, char *argv[]) {
     printf("\txbar = %lf\n", xbar);
     printf("\tybar = %lf\n", ybar);
     printf("\tr2    = %lf\n", r2);
-    printf("\tN     = %lld\n", N);
     printf("\tSX    = %lld\n", SX_ll);
     printf("\tSY    = %lld\n", SY_ll);
     printf("\tSXX  = %lld\n", SXX_ll);
