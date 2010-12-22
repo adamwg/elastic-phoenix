@@ -101,6 +101,12 @@ memory with it.  The intermediate data is freed as reduce tasks run, but some
 final data will be in shared memory with it.  In other words, the amount of
 shared memory needed for a given job will depend heavily on the application.
 
+Additionally, the task queue is in shared memory and has a limited number of
+task slots.  The framework will try to split data such that the task queue is
+not exhausted, but this relies on the application-provided data unit size.  If
+your application estimates the unit size, it is better to estimate low than
+high.
+
 We have successfully run the following examples with 4GB of shared memory:
 
 * Histogram with 1.4GB of input.
@@ -111,6 +117,12 @@ In standard Phoenix, you can run multiple MapReduce jobs in a single
 executable.  For example, a common pattern is to do some computation in one
 MapReduce job then sort the output with another.  This is not possible in the
 current version of Dynamic Phoneix.
+
+### Number of Workers
+
+Output queues for worker threads are pre-allocated, so the maximum number of
+worker threads is defined in `src/distributed.h`.  The default is 32, which at
+the default 4 threads per worker allows for 8 workers.
 
 Contact Information
 -------------------
