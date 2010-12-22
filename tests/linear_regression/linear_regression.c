@@ -126,7 +126,6 @@ static void linear_regression_reduce(void *key_in, iterator_t *itr)
     while (iter_next (itr, (void **)&val))
     {
         sum += val;
-        free (val);
     }
 
     emit(key_in, (void *)sum);
