@@ -64,29 +64,6 @@ char *key2 = "howareyou";
 char *key3 = "ferrari";
 char *key4 = "whotheman";
 
-/** getnextline()
- *  Function to get the next word
- */
-char *getnextline(char** output, int max_len, char* file, int *outlen) {
-    for(*output = file; *output < file + max_len; *output += 1) {
-        if(**output == '\0') {
-			*outlen = *output - file;
-			return NULL;
-        }
-        if(**output == '\r') {
-			*outlen = *output - file;
-            return *output + 2;
-		}
-
-        if(**output == '\n') {
-			*outlen = *output - file;
-            return *output + 1;
-		}
-    }
-
-	return NULL;
-}
-
 /** mystrcmp()
  *  Default comparison function
  */
@@ -180,14 +157,22 @@ void string_match_map(map_args_t *args)
 {
     assert(args);
     
-    int key_len, total_len = 0;
+    int key_len = 0, total_len = 0;
     char *key_file = args->data;
     char *cur_word;
 
 	char cur_word_final[MAX_REC_LEN];
 
-    while((total_len < args->length) &&
-		  (key_file = getnextline(&cur_word, MAX_REC_LEN, key_file, &key_len))) {
+    while(total_len < args->length) {
+		for(key_file += 1;
+			(*key_file == '\r' || *key_file == '\n') && total_len < args->length;
+			key_file += 1, total_len += 1);
+		
+		for(cur_word = key_file;
+			*key_file != '\r' && *key_file != '\n' && total_len < args->length;
+			key_file += 1, key_len += 1, total_len += 1);
+		
+		*key_file = '\0';
 		
 		memset(cur_word_final, 0, MAX_REC_LEN);
         compute_hashes(cur_word, cur_word_final);
