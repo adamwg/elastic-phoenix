@@ -47,10 +47,10 @@
 #define MAX_REC_LEN 1024
 #define OFFSET 5
 
-char key1_final[32];
-char key2_final[32];
-char key3_final[32];
-char key4_final[32];
+char key1_final[MAX_REC_LEN];
+char key2_final[MAX_REC_LEN];
+char key3_final[MAX_REC_LEN];
+char key4_final[MAX_REC_LEN];
 
 typedef struct {
 	char *fname_keys;
@@ -75,12 +75,12 @@ int mystrcmp(const void *v1, const void *v2)
 /** compute_hashes()
  *  Simple Cipher to generate a hash of the word 
  */
-void compute_hashes(char* word, char* final_word)
+void compute_hashes(char* word, char* final_word, int len)
 {
     int i;
-	memset(final_word, 0, 32);
+	memset(final_word, 0, MAX_REC_LEN);
 
-    for(i=0;i<strlen(word);i++)
+    for(i=0;i<len;i++)
         final_word[i] = word[i]+OFFSET;
 }
 
@@ -173,7 +173,7 @@ void string_match_map(map_args_t *args)
 			key_file += 1, key_len += 1, total_len += 1);
 		
 		memset(cur_word_final, 0, MAX_REC_LEN);
-        compute_hashes(cur_word, cur_word_final);
+        compute_hashes(cur_word, cur_word_final, key_len);
 
         if(!strcmp(key1_final, cur_word_final)) {
 			emit_intermediate(cur_word, (void *)1, key_len);
@@ -241,10 +241,10 @@ int main(int argc, char *argv[]) {
 
     CHECK_ERROR (map_reduce_init (&argc, &argv));
 
-	compute_hashes(key1, key1_final);
-	compute_hashes(key2, key2_final);
-	compute_hashes(key3, key3_final);
-	compute_hashes(key4, key4_final);
+	compute_hashes(key1, key1_final, strlen(key1));
+	compute_hashes(key2, key2_final, strlen(key2));
+	compute_hashes(key3, key3_final, strlen(key3));
+	compute_hashes(key4, key4_final, strlen(key4));
 
     str_data.offset = 0;
     str_data.fname_keys = argv[1];
