@@ -212,7 +212,6 @@ void string_match_map(map_args_t *args)
 			emit_intermediate(cur_word, (void *)1, key_len);
 		}
 		
-		memset(cur_word, 0, MAX_REC_LEN);
 		memset(cur_word_final, 0, MAX_REC_LEN);
         total_len += key_len;
     }

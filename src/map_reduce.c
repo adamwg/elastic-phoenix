@@ -1652,7 +1652,7 @@ static void split (mr_env_t *env) {
 		if(num_map_tasks < 0) {
 			/* Free any memory that was allocated in the split */
 			while(tq_dequeue(env->taskQueue, &task)) {
-				shm_free(task.data);
+				shm_free((void *)task.data);
 			}
 			env->chunk_size += 5;
 		}
