@@ -87,7 +87,7 @@ static void linear_regression_map(map_args_t *args)
     register long long x, y;
     register long long sx = 0, sxx = 0, sy = 0, syy = 0, sxy = 0;
 
-    for (i = 0; i < args->length; i += sizeof(POINT_T))
+    for (i = 0; i < args->length; i++)
     {
         //Compute SX, SY, SYY, SXX, SXY
         x = data[i].x;
@@ -226,14 +226,14 @@ int main(int argc, char *argv[]) {
     // Setup scheduler args
     map_reduce_args_t map_reduce_args;
     memset(&map_reduce_args, 0, sizeof(map_reduce_args_t));
-    map_reduce_args.task_data = &lr_data; // Array to regress
+    map_reduce_args.task_data = &lr_data;
 	map_reduce_args.task_data_size = sizeof(lr_data_t);
 	map_reduce_args.prep = lr_prep;
 	map_reduce_args.cleanup = lr_cleanup;
     map_reduce_args.map = linear_regression_map;
-    map_reduce_args.reduce = linear_regression_reduce; // Identity Reduce
+    map_reduce_args.reduce = linear_regression_reduce;
     map_reduce_args.combiner = linear_regression_combiner;
-    map_reduce_args.splitter = lr_splitter; // Array splitter;
+    map_reduce_args.splitter = lr_splitter;
     map_reduce_args.key_cmp = intkeycmp;
 	
     map_reduce_args.unit_size = sizeof(POINT_T);
