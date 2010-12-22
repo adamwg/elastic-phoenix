@@ -157,7 +157,7 @@ void string_match_map(map_args_t *args)
 {
     assert(args);
     
-    int key_len, total_len = 0;
+    size_t key_len, total_len = 0;
     char *key_file = args->data;
     char *cur_word;
 
@@ -165,14 +165,12 @@ void string_match_map(map_args_t *args)
 
     while(total_len < args->length) {
 		for(;
-			key_file && (*key_file == '\r' || *key_file == '\n') && total_len < args->length;
+			(*key_file == '\r' || *key_file == '\n') && total_len < args->length;
 			key_file += 1, total_len += 1);
 
-		cur_word = key_file;
-		key_file = strpbrk(key_file, "\r\n");
-
-		key_len = key_file - cur_word;
-		total_len += key_len;
+		for(cur_word = key_file, key_len = 0;
+			*key_file != '\r' && *key_file != '\n' && total_len < args->length;
+			key_file += 1, total_len += 1, key_len += 1);
 		
 		memset(cur_word_final, 0, MAX_REC_LEN);
         compute_hashes(cur_word, cur_word_final, key_len);
