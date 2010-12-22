@@ -333,6 +333,7 @@ int main(int argc, char *argv[]) {
     printf("Linear Regression: Completed %ld\n",(endtime.tv_sec - starttime.tv_sec));
 
     printf("Linear Regression Results:\n");
+	printf("\tn     = %lld\n", n);
     printf("\ta     = %lf\n", a);
     printf("\tb     = %lf\n", b);
     printf("\txbar = %lf\n", xbar);
