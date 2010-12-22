@@ -123,6 +123,7 @@ int wordcount_splitter(void *data_in, int req_units, map_args_t *out,
 		close(data->fd);
 		data->fd = open(data->fname, O_RDONLY);
 		data->fpos = 0;
+		return(0);
 	}
 	
 	// At the end of the file.

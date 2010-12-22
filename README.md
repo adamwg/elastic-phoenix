@@ -44,20 +44,23 @@ API
 For the most part, the Dynamic Phoenix API is identical to the original Phoenix
 API.  However, there are some key differences:
 
-1. The splitter function takes an additional parameter, a `splitter_mem_ops_t1`,
+1. The splitter function takes an additional parameter, a `splitter_mem_ops_t`,
 which contains pointers to memory allocation functions.  The splitter must use
 these functions to allocate the data returned in the map arguments.  This means
 that the common pattern of `mmap`ing a file and returning offsets from the
 splitter does not work in Dynamic Phoenix.
-1. The framework provides a new function, `map_reduce_cleanup`, which should be
+2. The splitter might be re-run if it generates too many tasks (see below).
+This means that we must be able to reset the splitter's state.  This is done by
+passing a negative `req_units` argument to the splitter.
+3. The framework provides a new function, `map_reduce_cleanup`, which should be
 called by applications when they are done with the results of a MapReduce job.
-1. Applications may provide two new functions, `prep` and `cleanup`, which will
+4. Applications may provide two new functions, `prep` and `cleanup`, which will
 be executed only in the master process.  `prep` is called before any other work
 is done, and is a good place to open files that may only be present on the node
 running the master process.  The `cleanup` function is called by the
 `map_reduce_cleanup` function, in the master only.  It is a good place to close
 files that were opened in `prep`.
-1. `map_reduce_init` now takes two arguments, `argc` and `argv`, which should be
+5. `map_reduce_init` now takes two arguments, `argc` and `argv`, which should be
 pointers to your application's `argc` and `argv`.  This is because Dynamic
 Phoenix applications take some framework arguments, which are stripped and
 processed by `map_reduce_init`.  Because of this, it is important to call

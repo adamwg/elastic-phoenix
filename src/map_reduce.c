@@ -1580,6 +1580,7 @@ array_splitter (void *data_in, int req_units, map_args_t *out, splitter_mem_ops_
 
 	if(req_units < 0) {
 		env->splitter_pos = 0;
+		return(0);
 	}
 
     /* End of data reached, return FALSE. */
