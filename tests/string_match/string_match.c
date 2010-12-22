@@ -165,7 +165,7 @@ void string_match_map(map_args_t *args)
 
     while(total_len < args->length) {
 		for(;
-			(*key_file == '\r' || *key_file == '\n') && total_len < args->length;
+			key_file && (*key_file == '\r' || *key_file == '\n') && total_len < args->length;
 			key_file += 1, total_len += 1);
 
 		cur_word = key_file;
