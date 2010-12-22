@@ -227,13 +227,6 @@ int main(int argc, char *argv[]) {
 
     CHECK_ERROR (map_reduce_init (&argc, &argv));
 
-    // Make sure a filename is specified
-    if (argv[1] == NULL)
-    {
-        printf("USAGE: %s <filename>\n", argv[0]);
-        exit(1);
-    }
-    
     lr_data.fname = argv[1];
 
     printf("Linear Regression: Running...\n");

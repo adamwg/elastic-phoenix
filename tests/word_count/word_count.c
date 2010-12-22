@@ -288,12 +288,6 @@ int main(int argc, char *argv[])
     i = map_reduce_init (&argc, &argv);
 	CHECK_ERROR(i < 0);
 
-    // Make sure a filename is specified
-    if (argv[1] == NULL) {
-        printf("USAGE: %s <filename> [Top # of results to display]\n", argv[0]);
-        exit(1);
-    }
-
     wc_data.fname = argv[1];
 
     printf("Wordcount: Running...\n");
