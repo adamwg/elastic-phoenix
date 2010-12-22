@@ -117,7 +117,7 @@ int string_match_splitter(void *data_in, int req_units, map_args_t *out, splitte
 tryagain:
     /* Assign the required number of bytes */
     out->length = (req_bytes < available_bytes)? req_bytes:available_bytes;
-    out->data = mem->alloc(out->length);
+    out->data = mem->alloc(out->length + 1);
 	CHECK_ERROR(out->data == NULL);
 	out->length = read(data->fd_keys, out->data, out->length);
 	data->offset += out->length;
@@ -164,15 +164,15 @@ void string_match_map(map_args_t *args)
 	char cur_word_final[MAX_REC_LEN];
 
     while(total_len < args->length) {
-		for(key_file += 1;
-			(*key_file == '\r' || *key_file == '\n') && total_len <= args->length;
+		for(;
+			(*key_file == '\r' || *key_file == '\n') && total_len < args->length;
 			key_file += 1, total_len += 1);
-		
-		for(cur_word = key_file, key_len = 0;
-			*key_file != '\r' && *key_file != '\n' && total_len <= args->length;
-			key_file += 1, key_len += 1, total_len += 1);
 
-		if(key_len == 0) { break; }
+		cur_word = key_file;
+		key_file = strpbrk(key_file, "\r\n");
+
+		key_len = key_file - cur_word;
+		total_len += key_len;
 		
 		memset(cur_word_final, 0, MAX_REC_LEN);
         compute_hashes(cur_word, cur_word_final, key_len);
@@ -192,8 +192,6 @@ void string_match_map(map_args_t *args)
         if(!memcmp(key4_final, cur_word_final, key_len)) {
 			emit_intermediate(cur_word, (void *)1, key_len);
 		}
-		
-        total_len += key_len;
     }
 }
 
