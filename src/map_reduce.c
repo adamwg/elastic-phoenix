@@ -812,7 +812,7 @@ static bool map_worker_do_next_task (
     get_time (&end);
 
 	/* Free up memory */
-	shm_free(map_task.data);
+	shm_free((void *)map_task.data);
 
 #ifdef TIMING
     args->run_time = time_diff (&end, &begin);
