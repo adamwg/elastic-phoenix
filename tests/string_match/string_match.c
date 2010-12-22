@@ -157,7 +157,7 @@ void string_match_map(map_args_t *args)
 {
     assert(args);
     
-    int key_len = 0, total_len = 0;
+    int key_len, total_len = 0;
     char *key_file = args->data;
     char *cur_word;
 
@@ -168,7 +168,7 @@ void string_match_map(map_args_t *args)
 			(*key_file == '\r' || *key_file == '\n') && total_len < args->length;
 			key_file += 1, total_len += 1);
 		
-		for(cur_word = key_file;
+		for(cur_word = key_file, key_len = 0;
 			*key_file != '\r' && *key_file != '\n' && total_len < args->length;
 			key_file += 1, key_len += 1, total_len += 1);
 		
@@ -297,7 +297,7 @@ int main(int argc, char *argv[]) {
 
     gettimeofday(&endtime,0);
 
-    printf("\nString Match: Results:\n");
+    printf("\nString Match Results:\n");
 	int i;
     for (i = 0; i < str_vals.length; i++) {
 		keyval_t * curr = &((keyval_t *)str_vals.data)[i];
