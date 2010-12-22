@@ -1637,6 +1637,7 @@ default_partition (int num_reduce_tasks, void* key, int key_size)
 static void split (mr_env_t *env) {
 	struct timeval begin, end;
 	int num_map_tasks;
+	task_t task;
 
 	do {
 		printf("Splitting data with chunk_size = %d\n", env->chunk_size);
@@ -1647,8 +1648,14 @@ static void split (mr_env_t *env) {
 #ifdef TIMING
 		fprintf(stderr, "splitter time: %u\n", time_diff (&end, &begin));
 #endif
-		// Increase the chunk size in case we fill the queue this time.
-		env->chunk_size += 5;
+		/* Increase the chunk size in case we fill the queue this time. */
+		if(num_map_tasks < 0) {
+			/* Free any memory that was allocated in the split */
+			while(tq_dequeue(env->taskQueue, &task)) {
+				shm_free(task.data);
+			}
+			env->chunk_size += 5;
+		}
 	} while(num_map_tasks < 0);
 	printf("Done splitting data.\n");
 		
