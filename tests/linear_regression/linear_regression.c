@@ -75,9 +75,6 @@ static int intkeycmp(const void *v1, const void *v2)
          return 0;
 }
 
-/** sort_map()
- *  Sorts based on the val output of wordcount
- */
 static void linear_regression_map(map_args_t *args) 
 {
     assert(args);
@@ -86,12 +83,6 @@ static void linear_regression_map(map_args_t *args)
     int i;
 
     assert(data);
-
-    long long * SX  = CALLOC(sizeof(long long), 1);
-    long long * SXX = CALLOC(sizeof(long long), 1);
-    long long * SY  = CALLOC(sizeof(long long), 1);
-    long long * SYY = CALLOC(sizeof(long long), 1);
-    long long * SXY = CALLOC(sizeof(long long), 1);
 
     register long long x, y;
     register long long sx = 0, sxx = 0, sy = 0, syy = 0, sxy = 0;
@@ -109,17 +100,11 @@ static void linear_regression_map(map_args_t *args)
         sxy += x * y;
     }
 
-    *SX = sx;
-    *SXX = sxx;
-    *SY = sy;
-    *SYY = syy;
-    *SXY = sxy;
-
-    emit_intermediate((void*)KEY_SX,  (void*)SX,  sizeof(void*)); 
-    emit_intermediate((void*)KEY_SXX, (void*)SXX, sizeof(void*)); 
-    emit_intermediate((void*)KEY_SY,  (void*)SY,  sizeof(void*)); 
-    emit_intermediate((void*)KEY_SYY, (void*)SYY, sizeof(void*)); 
-    emit_intermediate((void*)KEY_SXY, (void*)SXY, sizeof(void*)); 
+    emit_intermediate((void*)KEY_SX,  (void*)sx,  sizeof(void*)); 
+    emit_intermediate((void*)KEY_SXX, (void*)sxx, sizeof(void*)); 
+    emit_intermediate((void*)KEY_SY,  (void*)sy,  sizeof(void*)); 
+    emit_intermediate((void*)KEY_SYY, (void*)syy, sizeof(void*)); 
+    emit_intermediate((void*)KEY_SXY, (void*)sxy, sizeof(void*)); 
 }
 
 static int linear_regression_partition(int reduce_tasks, void* key, int key_size)
