@@ -71,7 +71,7 @@ char *getnextline(char** output, int max_len, char* file, int *outlen) {
     for(*output = file; *output < file + max_len; *output += 1) {
         if(**output == '\0') {
 			*outlen = *output - file;
-			return *output;
+			return NULL;
         }
         if(**output == '\r') {
 			*outlen = *output - file;
