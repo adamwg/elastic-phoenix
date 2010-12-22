@@ -42,7 +42,6 @@ typedef struct
 {
 	intptr_t length;
 	void *data;
-	size_t actual_size;
 } map_args_t;
 
 /* Single element of result

@@ -24,21 +24,21 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */ 
 
-#include <stdio.h>
-#include <strings.h>
-#include <string.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <assert.h>
+#include <ctype.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <fcntl.h>
-#include <ctype.h>
-#include <time.h>
 #include <sys/times.h>
-#include <inttypes.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "map_reduce.h"
 #include "stddefines.h"
@@ -48,28 +48,22 @@
 #define MAX_REC_LEN 1024
 #define OFFSET 5
 
+char key1_final[32];
+char key2_final[32];
+char key3_final[32];
+char key4_final[32];
+
 typedef struct {
-  int keys_file_len;
-  int encrypted_file_len;
-  long bytes_comp;
-  char * keys_file;
-  char * encrypt_file;
+	char *fname_keys;
+	int fd_keys;
+	size_t keys_file_len;
+	size_t offset;
 } str_data_t;
 
-typedef struct {
-  char * keys_file;
-  char * encrypt_file;
-} str_map_data_t;
-
- char *key1 = "Helloworld";
- char *key2 = "howareyou";
- char *key3 = "ferrari";
- char *key4 = "whotheman";
-
- char *key1_final;
- char *key2_final;
- char *key3_final;
- char *key4_final;
+char *key1 = "Helloworld";
+char *key2 = "howareyou";
+char *key3 = "ferrari";
+char *key4 = "whotheman";
 
 /** getnextline()
  *  Function to get the next word
@@ -113,6 +107,7 @@ int mystrcmp(const void *v1, const void *v2)
 void compute_hashes(char* word, char* final_word)
 {
     int i;
+	memset(final_word, 0, 32);
 
     for(i=0;i<strlen(word);i++)
         final_word[i] = word[i]+OFFSET;
@@ -121,65 +116,65 @@ void compute_hashes(char* word, char* final_word)
 /** string_match_splitter()
  *  Splitter Function to assign portions of the file to each map task
  */
-int string_match_splitter(void *data_in, int req_units, map_args_t *out)
+int string_match_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_ops_t *mem)
 {
     /* Make a copy of the mm_data structure */
-    str_data_t * data = (str_data_t *)data_in; 
-    str_map_data_t *map_data = (str_map_data_t *)malloc(sizeof(str_map_data_t));
+    str_data_t * data = (str_data_t *)data_in;
+	int less;
+    int req_bytes = req_units*DEFAULT_UNIT_SIZE;
+    int available_bytes = data->keys_file_len - data->offset;
+	char *c;
 
-    map_data->encrypt_file = data->encrypt_file;
-    map_data->keys_file = data->keys_file + data->bytes_comp;
-
+	if(req_units < 0) {
+		if(data->offset > 0) {
+			lseek(data->fd_keys, 0, SEEK_SET);
+			data->offset = 0;
+		}
+		return(0);
+	}
+	
     /* Check whether the various terms exist */
     assert(data_in);
     assert(out);
     assert(req_units >= 0);
+    assert(data->offset >= 0);
 
-    assert(data->bytes_comp <= data->keys_file_len);
-
-    if(data->bytes_comp >= data->keys_file_len)
-    {
+    if(data->offset >= data->keys_file_len) {
         return 0;
     }
 
+tryagain:
     /* Assign the required number of bytes */
-    int req_bytes = req_units*DEFAULT_UNIT_SIZE;
-    int available_bytes = data->keys_file_len - data->bytes_comp;
-    if(available_bytes < 0)
-	    available_bytes = 0;
-
     out->length = (req_bytes < available_bytes)? req_bytes:available_bytes;
-    out->data = map_data;
+    out->data = mem->alloc(out->length);
+	out->length = read(data->fd_keys, out->data, out->length);
+	data->offset += out->length;
 
-    char* final_ptr = map_data->keys_file + out->length;
-    int counter = data->bytes_comp + out->length;
+    // Find the last space in the read data.
+	for(c = &((char *)out->data)[out->length - 1], less = 0;
+		c >= (char *)out->data &&
+			*c != ' ' && *c != '\t' &&
+			*c != '\r' && *c != '\n';
+		c--, less--);
 
-    /* make sure we end at a word */
-    while(counter <= data->keys_file_len && *final_ptr != '\n'
-		 && *final_ptr != '\r' && *final_ptr != '\0')
-    {
-        counter++;
-        final_ptr++;
-    }
-    if(*final_ptr == '\r')
-        counter+=2;
-    else if(*final_ptr == '\n')
-        counter++;
+	// Seek back to where the space was.
+	if(less < 0) {
+		lseek(data->fd_keys, less, SEEK_CUR);
+		data->offset += less;
+		out->length += less;
+	}
 
-    out->length = counter - data->bytes_comp;
-    data->bytes_comp = counter;
-	out->actual_size = out->length;
+	((char *)out->data)[out->length] = 0;
+
+	// If we just read one big long word, then change the req_units and go back
+	// to the top... ugly, but it will work.
+	if(out->length == 0) {
+		mem->free(out->data);
+		req_units++;
+		goto tryagain;
+	}
 
     return 1;
-}
-
-void *string_match_locator (map_args_t *task)
-{
-    assert (task);
-
-    str_map_data_t *data_in = (str_map_data_t *)task->data;
-
-    return data_in->keys_file;
 }
 
 /** string_match_map()
@@ -189,108 +184,113 @@ void string_match_map(map_args_t *args)
 {
     assert(args);
     
-    str_map_data_t* data_in = (str_map_data_t*)(args->data);
-
     int key_len, total_len = 0;
-    char * key_file = data_in->keys_file;
-    char * cur_word = malloc(MAX_REC_LEN);
-    char * cur_word_final = malloc(MAX_REC_LEN);
-    bzero(cur_word, MAX_REC_LEN);
-    bzero(cur_word_final, MAX_REC_LEN);
+    char *key_file = args->data;
+    char cur_word[MAX_REC_LEN];
+    char cur_word_final[MAX_REC_LEN];
+    memset(cur_word, 0, MAX_REC_LEN);
+    memset(cur_word_final, 0, MAX_REC_LEN);
 
     while( (total_len <= args->length) && ((key_len = getnextline(cur_word, MAX_REC_LEN, key_file)) >= 0))
     {
         compute_hashes(cur_word, cur_word_final);
 
-        if(!strcmp(key1_final, cur_word_final));
-                //dprintf("FOUND: WORD IS %s\n", cur_word);
+        if(!strcmp(key1_final, cur_word_final)) {
+			emit_intermediate(cur_word, (void *)1, key_len);
+		}
 
-        if(!strcmp(key2_final, cur_word_final));
-                //dprintf("FOUND: WORD IS %s\n", cur_word);
+        if(!strcmp(key2_final, cur_word_final)) {
+			emit_intermediate(cur_word, (void *)1, key_len);
+		}
 
-        if(!strcmp(key3_final, cur_word_final));
-                //dprintf("FOUND: WORD IS %s\n", cur_word);
+        if(!strcmp(key3_final, cur_word_final)) {
+			emit_intermediate(cur_word, (void *)1, key_len);
+		}
 
-        if(!strcmp(key4_final, cur_word_final));
-                //dprintf("FOUND: WORD IS %s\n", cur_word);
-
+        if(!strcmp(key4_final, cur_word_final)) {
+			emit_intermediate(cur_word, (void *)1, key_len);
+		}
+		
         key_file = key_file + key_len;
-        bzero(cur_word,MAX_REC_LEN);
-        bzero(cur_word_final, MAX_REC_LEN);
+		memset(cur_word, 0, MAX_REC_LEN);
+		memset(cur_word_final, 0, MAX_REC_LEN);
         total_len+=key_len;
     }
-    free(cur_word);
-    free(args->data);
+}
+
+void sm_reduce(void *key_in, iterator_t *itr)
+{
+    char *key = (char *)key_in;
+    void *val;
+    intptr_t sum = 0;
+
+    assert(key);
+    assert(itr);
+
+    while (iter_next (itr, &val))
+    {
+        sum += (intptr_t)val;
+    }
+
+    emit(key, (void *)sum);
+}
+
+int sm_prep(void *data_in, map_reduce_args_t *args) {
+	str_data_t *data = (str_data_t *)data_in;
+    struct stat finfo_keys;
+
+	// Read in the file
+    CHECK_ERROR((data->fd_keys = open(data->fname_keys,O_RDONLY)) < 0);
+    // Get the file info (for file length)
+    CHECK_ERROR(fstat(data->fd_keys, &finfo_keys) < 0);
+    data->keys_file_len = finfo_keys.st_size;
+    args->data_size = finfo_keys.st_size;
+
+	return(0);
+}
+
+int sm_cleanup(void *data_in) {
+	str_data_t *data = (str_data_t *)data_in;
+	return(close(data->fd_keys));
 }
 
 int main(int argc, char *argv[]) {
     final_data_t str_vals;
-    int fd_keys;
-    char *fdata_keys;
-    struct stat finfo_keys;
-    char *fname_keys;
-
     struct timeval begin, end;
+    struct timeval starttime,endtime;
+    str_data_t str_data;
 
     get_time (&begin);
 
     CHECK_ERROR (map_reduce_init (&argc, &argv));
 
-    if (argv[1] == NULL)
-    {
-        printf("USAGE: %s <keys filename>\n", argv[0]);
-        exit(1);
-    }
-    fname_keys = argv[1];
+	compute_hashes(key1, key1_final);
+	compute_hashes(key2, key2_final);
+	compute_hashes(key3, key3_final);
+	compute_hashes(key4, key4_final);
 
-    struct timeval starttime,endtime;
-    srand( (unsigned)time( NULL ) );
+    str_data.offset = 0;
+    str_data.fname_keys = argv[1];
 
     printf("String Match: Running...\n");
-
-    // Read in the file
-    CHECK_ERROR((fd_keys = open(fname_keys,O_RDONLY)) < 0);
-    // Get the file info (for file length)
-    CHECK_ERROR(fstat(fd_keys, &finfo_keys) < 0);
-#ifndef NO_MMAP
-    // Memory map the file
-    CHECK_ERROR((fdata_keys= mmap(0, finfo_keys.st_size + 1,
-        PROT_READ | PROT_WRITE, MAP_PRIVATE, fd_keys, 0)) == NULL);
-#else
-    int ret;
-
-    fdata_keys = (char *)malloc (finfo_keys.st_size);
-    CHECK_ERROR (fdata_keys == NULL);
-
-    ret = read (fd_keys, fdata_keys, finfo_keys.st_size);
-    CHECK_ERROR (ret != finfo_keys.st_size);
-#endif
-
-    // Setup splitter args
-
-    dprintf("Keys Size is %" PRId64 "\n",finfo_keys.st_size);
-
-    str_data_t str_data;
-
-    str_data.keys_file_len = finfo_keys.st_size;
-    str_data.encrypted_file_len = 0;
-    str_data.bytes_comp = 0;
-    str_data.keys_file  = ((char *)fdata_keys);
-    str_data.encrypt_file  = NULL;
 
     // Setup scheduler args
     map_reduce_args_t map_reduce_args;
     memset(&map_reduce_args, 0, sizeof(map_reduce_args_t));
     map_reduce_args.task_data = &str_data;
+	map_reduce_args.task_data_size = sizeof(str_data_t);
+	
+	map_reduce_args.prep = sm_prep;
+	map_reduce_args.cleanup = sm_cleanup;
     map_reduce_args.map = string_match_map;
-    map_reduce_args.reduce = NULL;
+    map_reduce_args.reduce = sm_reduce;
     map_reduce_args.splitter = string_match_splitter;
-    map_reduce_args.locator = string_match_locator;
     map_reduce_args.key_cmp = mystrcmp;
+	
     map_reduce_args.unit_size = DEFAULT_UNIT_SIZE;
     map_reduce_args.partition = NULL; // use default
     map_reduce_args.result = &str_vals;
-    map_reduce_args.data_size = finfo_keys.st_size;
+	
     map_reduce_args.L1_cache_size = atoi(GETENV("MR_L1CACHESIZE"));//1024 * 512;
     map_reduce_args.num_map_threads = atoi(GETENV("MR_NUMTHREADS"));//8;
     map_reduce_args.num_reduce_threads = atoi(GETENV("MR_NUMTHREADS"));//16;
@@ -299,16 +299,6 @@ int main(int argc, char *argv[]) {
     map_reduce_args.key_match_factor = (float)atof(GETENV("MR_KEYMATCHFACTOR"));//2;
 
     printf("String Match: Calling String Match\n");
-
-	key1_final = malloc(strlen(key1));
-	key2_final = malloc(strlen(key2));
-	key3_final = malloc(strlen(key3));
-	key4_final = malloc(strlen(key4));
-
-	compute_hashes(key1, key1_final);
-	compute_hashes(key2, key2_final);
-	compute_hashes(key3, key3_final);
-	compute_hashes(key4, key4_final);
 
     gettimeofday(&starttime,0);
 
@@ -328,25 +318,19 @@ int main(int argc, char *argv[]) {
 
     get_time (&begin);
 
-    CHECK_ERROR (map_reduce_finalize ());
-
     gettimeofday(&endtime,0);
 
-    free(key1_final);
-    free(key2_final);
-    free(key3_final);
-    free(key4_final);
-
-    printf("String Match: Completed %ld\n",(endtime.tv_sec - starttime.tv_sec));
-
-#ifndef NO_MMAP
-    CHECK_ERROR(munmap(fdata_keys, finfo_keys.st_size + 1) < 0);
-#else
-    free (fdata_keys);
-#endif
-    CHECK_ERROR(close(fd_keys) < 0);
+    printf("\nString Match: Results:\n");
+	int i;
+    for (i = 0; i < str_vals.length; i++) {
+		keyval_t * curr = &((keyval_t *)str_vals.data)[i];
+		dprintf("%15s - %" PRIdPTR "\n", (char *)curr->key, (intptr_t)curr->val);
+    }
 
     get_time (&end);
+
+	map_reduce_cleanup(&map_reduce_args);
+    CHECK_ERROR (map_reduce_finalize ());
 
 #ifdef TIMING
     fprintf (stderr, "finalize: %u\n", time_diff (&end, &begin));

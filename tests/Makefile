@@ -36,14 +36,14 @@ include $(HOME)/Defines.mk
 APPS := \
         histogram \
         linear_regression \
-        pca \
-        matrix_multiply \
         word_count \
-#        string_match \
-#        kmeans \
+        string_match \
 
-# kmeans and string_match do something stupid in the splitter, 
-# so they're not amenable to conversion.
+# pca, mm, and kmeans generate their input data, so it's a bit more involved to
+# convert them to dynamic phoenix.
+#        matrix_multiply \
+#        pca \
+#        kmeans \
 
 default: all
 
