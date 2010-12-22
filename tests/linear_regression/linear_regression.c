@@ -88,7 +88,7 @@ static void linear_regression_map(map_args_t *args)
     register long long x, y;
     register long long sx = 0, sxx = 0, sy = 0, syy = 0, sxy = 0;
 
-    for (i = 0; i < args->length; i++)
+    for (i = 0; i < args->length / sizeof(POINT_T); i++)
     {
         //Compute SX, SY, SYY, SXX, SXY
         x = data[i].x;
