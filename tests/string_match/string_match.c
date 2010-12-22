@@ -168,26 +168,30 @@ void string_match_map(map_args_t *args)
 			(*key_file == '\r' || *key_file == '\n') && total_len < args->length;
 			key_file += 1, total_len += 1);
 
+		if(total_len == args->length) break;
+
 		for(cur_word = key_file, key_len = 0;
 			*key_file != '\r' && *key_file != '\n' && total_len < args->length;
 			key_file += 1, total_len += 1, key_len += 1);
-		
+
+		CHECK_ERROR(key_len <= 0);
+
 		memset(cur_word_final, 0, MAX_REC_LEN);
         compute_hashes(cur_word, cur_word_final, key_len);
 
-        if(!memcmp(key1_final, cur_word_final, key_len)) {
+        if(!strcmp(key1_final, cur_word_final)) {
 			emit_intermediate(cur_word, (void *)1, key_len);
 		}
 
-        if(!memcmp(key2_final, cur_word_final, key_len)) {
+        if(!strcmp(key2_final, cur_word_final)) {
 			emit_intermediate(cur_word, (void *)1, key_len);
 		}
 
-        if(!memcmp(key3_final, cur_word_final, key_len)) {
+        if(!strcmp(key3_final, cur_word_final)) {
 			emit_intermediate(cur_word, (void *)1, key_len);
 		}
 
-        if(!memcmp(key4_final, cur_word_final, key_len)) {
+        if(!strcmp(key4_final, cur_word_final)) {
 			emit_intermediate(cur_word, (void *)1, key_len);
 		}
     }
