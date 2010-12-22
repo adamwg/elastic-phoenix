@@ -189,7 +189,7 @@ void string_match_map(map_args_t *args)
 			emit_intermediate(cur_word, (void *)1, key_len);
 		}
 
-        if(!strcmp(key4_final, cur_word_final, key_len)) {
+        if(!memcmp(key4_final, cur_word_final, key_len)) {
 			emit_intermediate(cur_word, (void *)1, key_len);
 		}
 		
