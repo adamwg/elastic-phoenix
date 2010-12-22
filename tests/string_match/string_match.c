@@ -44,7 +44,6 @@
 #include "stddefines.h"
 
 #define DEFAULT_UNIT_SIZE 5
-#define SALT_SIZE 2
 #define MAX_REC_LEN 1024
 #define OFFSET 5
 
@@ -151,8 +150,9 @@ tryagain:
 	out->length = read(data->fd_keys, out->data, out->length);
 	data->offset += out->length;
 
-    // Find the last space in the read data.
+    // Find the last space in the read data, assuming we're not done.
 	for(c = &((char *)out->data)[out->length - 1], less = 0;
+		data->offset != data->keys_file_len &&
 		c >= (char *)out->data &&
 			*c != ' ' && *c != '\t' &&
 			*c != '\r' && *c != '\n';
@@ -244,8 +244,8 @@ int sm_prep(void *data_in, map_reduce_args_t *args) {
     CHECK_ERROR((data->fd_keys = open(data->fname_keys,O_RDONLY)) < 0);
     // Get the file info (for file length)
     CHECK_ERROR(fstat(data->fd_keys, &finfo_keys) < 0);
-    data->keys_file_len = finfo_keys.st_size;
     args->data_size = finfo_keys.st_size;
+    data->keys_file_len = finfo_keys.st_size;
 
 	return(0);
 }

@@ -141,8 +141,9 @@ tryagain:
 	out->length = read(data->fd, out->data, out->length);
 	data->fpos += out->length;
     
-    // Find the last space in the read data.
+    // Find the last space in the read data, assuming we're not done.
 	for(c = &((char *)out->data)[out->length - 1], less = 0;
+		data->fpos != data->fsize &&
 		c >= (char *)out->data &&
 			*c != ' ' && *c != '\t' &&
 			*c != '\r' && *c != '\n';
