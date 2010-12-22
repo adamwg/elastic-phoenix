@@ -295,6 +295,9 @@ map_reduce_init (int *argc, char ***argv)
 	for(i = 0; i < *argc - optind; i++) {
 		(*argv)[i+1] = (*argv)[optind+i];
 	}
+	for(; i < *argc - 1; i++) {
+		(*argv)[i+1] = NULL;
+	}
 	*argc -= (optind + 1);
 
 	return(0);
