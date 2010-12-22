@@ -103,10 +103,14 @@ typedef void (*reduce_t)(void *, iterator_t *itr);
  * directly. */
 typedef void *(*combiner_t)(iterator_t *itr);
 
-/* Splitter function takes in a pointer to the input data, an interger of
- * the number of bytes requested, and an uninitialized pointer to a 
+/* Splitter function takes in a pointer to the input data, an integer of
+ * the number of units requested, and an uninitialized pointer to a 
  * map_args_t pointer. The result is stored in map_args_t. The splitter
  * should return 1 if the result is valid or 0 if there is no more data.
+ *
+ * Split data (returned in map_args_t.data) must be allocated using the alloc
+ * field of the splitter_mem_ops_t argument.  If the number of units requested
+ * is -1, the splitter should reset its state.
  */
 typedef struct {
 	void *(*alloc)(size_t);

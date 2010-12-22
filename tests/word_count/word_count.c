@@ -119,6 +119,12 @@ int wordcount_splitter(void *data_in, int req_units, map_args_t *out,
     assert(data->fd > 0);
     assert(req_units);
 
+	if(req_units < 0) {
+		close(data->fd);
+		data->fd = open(data->fname, O_RDONLY);
+		data->fpos = 0;
+	}
+	
 	// At the end of the file.
 	if(data->fpos >= data->fsize) {
 		return(0);

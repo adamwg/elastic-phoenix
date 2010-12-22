@@ -1165,7 +1165,8 @@ static int gen_map_tasks (mr_env_t* env)
 
     /* split until complete */
     cur_task_id = 0;
-	env->splitter_pos = 0;
+	/* Tell the splitter to reset, in case this is the second round. */
+	env->splitter(env->args->task_data, -1, &args, &mops);
     while (env->splitter (env->args->task_data, env->chunk_size, &args, &mops) > 0)
     {
         task.id = cur_task_id;
@@ -1561,9 +1562,9 @@ getCurrThreadIndex (TASK_TYPE_T task_type)
 /** array_splitter()
  *
  * Note: In the modified API for shared memory, this function should not be
- * used on mmaped files.  If your data is already (really) in memory then it's
+ * used on mmapped files.  If your data is already (really) in memory then it's
  * no slower than before, but if your data is in a file, it's better to
- * provide a splitter that reads directly into shmem (see wordcount_splitter
+ * provide a splitter that reads directly into shmem (see histogram's splitter
  * for an example).
 */
 int 
@@ -1576,6 +1577,10 @@ array_splitter (void *data_in, int req_units, map_args_t *out, splitter_mem_ops_
 
     env = get_env();
     unit_size = env->args->unit_size;
+
+	if(req_units < 0) {
+		env->splitter_pos = 0;
+	}
 
     /* End of data reached, return FALSE. */
     if (env->splitter_pos >= env->args->data_size)
