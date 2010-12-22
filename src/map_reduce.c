@@ -533,7 +533,7 @@ env_init (map_reduce_args_t *args)
 
 	MASTER {
 		/* Only the master merges */
-		env->num_merge_threads = (mr_shared_env->worker_counter * L_NUM_THREADS) / 2;
+		env->num_merge_threads = L_NUM_THREADS;
 		/* Assign at least one merge thread. */
 		env->num_merge_threads = MAX(env->num_merge_threads, 1);
 		
@@ -560,8 +560,7 @@ env_init (map_reduce_args_t *args)
 	}
 
 	env->num_reduce_tasks = NUM_REDUCE_TASKS;
-    env->num_merge_threads = MIN (
-		env->num_merge_threads, env->num_reduce_tasks / 2);
+    env->num_merge_threads = MIN(env->num_merge_threads, env->num_reduce_tasks / 2);
 	env->intermediate_task_alloc_len = MAX_WORKER_THREADS;
 
     /* Register callbacks. */
@@ -1255,13 +1254,10 @@ emit_inline (mr_env_t* env, void *key, void *val)
     keyval_arr_t    *arr;
     int             curr_red_queue;
     static __thread int thread_index = -1;
-	int g_thread_index;
 
     if (thread_index < 0)
         thread_index = getCurrThreadIndex (TASK_TYPE_REDUCE);
-	g_thread_index = getGlobalThreadIndex(env, thread_index);
-
-	curr_red_queue = g_thread_index;
+	curr_red_queue = getGlobalThreadIndex(env, thread_index);
 
     /* Insert sorted in global queue at pos curr_proc */
     arr = &env->final_vals[curr_red_queue];
@@ -1457,24 +1453,21 @@ merge_results (mr_env_t* env, keyval_arr_t *vals, int length)
     int total_num_keys = 0;
     int i;
     static __thread int curr_thread = -1;
-	int g_curr_thread;
     
     if (curr_thread < 0)
         curr_thread = getCurrThreadIndex (TASK_TYPE_MERGE);
 	
-	g_curr_thread = getGlobalThreadIndex(env, curr_thread);
-
     for (i = 0; i < length; i++) {
         total_num_keys += vals[i].len;
     }
 
-    env->merge_vals[g_curr_thread].len = total_num_keys;
-    env->merge_vals[g_curr_thread].alloc_len = total_num_keys;
-    env->merge_vals[g_curr_thread].pos = 0;
-    env->merge_vals[g_curr_thread].arr = (keyval_t *)
+    env->merge_vals[curr_thread].len = total_num_keys;
+    env->merge_vals[curr_thread].alloc_len = total_num_keys;
+    env->merge_vals[curr_thread].pos = 0;
+    env->merge_vals[curr_thread].arr = (keyval_t *)
         shm_alloc(sizeof(keyval_t) * total_num_keys);
-	CHECK_ERROR(env->merge_vals[g_curr_thread].arr == NULL);
-	memset(env->merge_vals[g_curr_thread].arr, 0, sizeof(keyval_t) * total_num_keys);
+	CHECK_ERROR(env->merge_vals[curr_thread].arr == NULL);
+	memset(env->merge_vals[curr_thread].arr, 0, sizeof(keyval_t) * total_num_keys);
 
     for (data_idx = 0; data_idx < total_num_keys; data_idx++) {
         /* For each keyval_t. */
@@ -1504,10 +1497,12 @@ merge_results (mr_env_t* env, keyval_arr_t *vals, int length)
             }
         }
 
-        mem_memcpy (&env->merge_vals[g_curr_thread].arr[data_idx], 
+        mem_memcpy (&env->merge_vals[curr_thread].arr[data_idx], 
                         min_keyval, sizeof(keyval_t));
         vals[min_idx].pos += 1;
     }
+
+	printf("Thread %d merged %d\n", curr_thread, total_num_keys);
 }
 
 static inline int 
@@ -1692,7 +1687,7 @@ static void merge (mr_env_t* env)
 	mem_memset (&th_arg, 0, sizeof (thread_arg_t));
 	th_arg.task_type = TASK_TYPE_MERGE;
 	
-	th_arg.merge_len = L_NUM_THREADS;
+	th_arg.merge_len = mr_shared_env->worker_counter * L_NUM_THREADS;
 	th_arg.merge_input = env->final_vals;
 	
 	if (th_arg.merge_len <= 1) {
@@ -1707,6 +1702,7 @@ static void merge (mr_env_t* env)
 	
 	/* have work to merge! */
 	while (th_arg.merge_len > 1) {
+		printf("Merge round %d - len %d\n", th_arg.merge_round, th_arg.merge_len);
 		th_arg.merge_round += 1;
 		
 		/* This is the worst case length, 
