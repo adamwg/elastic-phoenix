@@ -169,6 +169,13 @@ int lr_splitter(void *data_in, int req_units, map_args_t *out, splitter_mem_ops_
 	lr_data_t *data = (lr_data_t *)data_in;
 	int r;
 
+	if(req_units < 0) {
+		close(data->fd);
+		data->fd = open(data->fname, O_RDONLY);
+		data->offset = 0;
+		return(0);
+	}
+	
 	if(data->offset >= data->data_bytes) {
 		return 0;
 	}
