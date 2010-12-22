@@ -811,6 +811,9 @@ static bool map_worker_do_next_task (
     env->map (&thread_func_arg);
     get_time (&end);
 
+	/* Free up memory */
+	shm_free(map_task.data);
+
 #ifdef TIMING
     args->run_time = time_diff (&end, &begin);
 #endif
