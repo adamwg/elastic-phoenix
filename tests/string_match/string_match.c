@@ -67,29 +67,28 @@ char *key4 = "whotheman";
 /** getnextline()
  *  Function to get the next word
  */
-int getnextline(char* output, int max_len, char* file)
-{
-    int i=0;
-    while(i<max_len-1)
-    {
-        if( file[i] == '\0')
-        {
-            if(i==0)
-                return -1;
-            else
-                return i;
+char *getnextline(char** output, int max_len, char* file, int *outlen) {
+	if(*file == '\0') {
+		return NULL;
+	}
+	
+    for(*output = file; *output < file + max_len; *output += 1) {
+        if(**output == '\0' || **output == '\n') {
+			*outlen = *output - file;
+			return NULL;
         }
-        if( file[i] == '\r')
-            return (i+2);
+        if(**output == '\r') {
+			*outlen = *output - file;
+            return *output + 2;
+		}
 
-        if( file[i] == '\n' )
-            return (i+1);
-
-        output[i] = file[i];
-        i++;
+        if(**output == '\n') {
+			*outlen = *output - file;
+            return *output + 1;
+		}
     }
-    file+=i;
-    return i;
+
+	return NULL;
 }
 
 /** mystrcmp()
@@ -187,13 +186,14 @@ void string_match_map(map_args_t *args)
     
     int key_len, total_len = 0;
     char *key_file = args->data;
-    char cur_word[MAX_REC_LEN];
-    char cur_word_final[MAX_REC_LEN];
-    memset(cur_word, 0, MAX_REC_LEN);
+    char *cur_word;
+
+	char cur_word_final[MAX_REC_LEN];
     memset(cur_word_final, 0, MAX_REC_LEN);
 
-    while( (total_len <= args->length) && ((key_len = getnextline(cur_word, MAX_REC_LEN, key_file)) >= 0))
-    {
+    while((total_len <= args->length) &&
+		  (key_file = getnextline(&cur_word, MAX_REC_LEN, key_file, &key_len))) {
+		
         compute_hashes(cur_word, cur_word_final);
 
         if(!strcmp(key1_final, cur_word_final)) {
@@ -212,10 +212,9 @@ void string_match_map(map_args_t *args)
 			emit_intermediate(cur_word, (void *)1, key_len);
 		}
 		
-        key_file = key_file + key_len;
 		memset(cur_word, 0, MAX_REC_LEN);
 		memset(cur_word_final, 0, MAX_REC_LEN);
-        total_len+=key_len;
+        total_len += key_len;
     }
 }
 
