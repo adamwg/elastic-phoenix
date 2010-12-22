@@ -96,7 +96,7 @@ static void linear_regression_map(map_args_t *args)
     register long long x, y;
     register long long sx = 0, sxx = 0, sy = 0, syy = 0, sxy = 0;
 
-    for (i = 0; i < args->length; i++)
+    for (i = 0; i < args->length; i += sizeof(POINT_T))
     {
         //Compute SX, SY, SYY, SXX, SXY
         x = data[i].x;
@@ -208,8 +208,8 @@ int lr_prep(void *data_in, map_reduce_args_t *args) {
     CHECK_ERROR((data->fd = open(data->fname, O_RDONLY)) < 0);
     // Get the file info (for file length)
     CHECK_ERROR(fstat(data->fd, &finfo) < 0);
-    args->data_size = finfo.st_size - (finfo.st_size % args->unit_size);
 
+	args->data_size = finfo.st_size - (finfo.st_size % args->unit_size);
 	data->data_bytes = finfo.st_size - (finfo.st_size % args->unit_size);
 	data->offset = 0;
 	
