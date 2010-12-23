@@ -122,6 +122,7 @@ tryagain:
     out->data = mem->alloc(out->length + 1);
 	CHECK_ERROR(out->data == NULL);
 	out->length = read(data->fd_keys, out->data, out->length);
+	CHECK_ERROR(out->length < 0);
 	data->offset += out->length;
 
     // Find the last space in the read data, assuming we're not done.
