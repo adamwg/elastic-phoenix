@@ -168,7 +168,7 @@ void string_match_map(map_args_t *args)
 
     while(total_len < args->length) {
 		for(;
-			(*key_file == '\r' || *key_file == '\n') && total_len < args->length;
+			(*key_file == '\0' || *key_file == '\r' || *key_file == '\n') && total_len < args->length;
 			key_file += 1, total_len += 1);
 
 		if(total_len == args->length) break;
@@ -178,7 +178,6 @@ void string_match_map(map_args_t *args)
 			key_file += 1, total_len += 1, key_len += 1);
 
 		*key_file = 0;
-		key_file += 1;
 		CHECK_ERROR(key_len <= 0);
 		CHECK_ERROR(key_len > MAX_REC_LEN);
 
