@@ -65,11 +65,11 @@ char *key3 = "ferrari";
 char *key4 = "whotheman";
 
 /** mystrcmp()
- *  Default comparison function
+ *  Comparison function to compare 2 words
  */
-int mystrcmp(const void *v1, const void *v2)
+int mystrcmp(const void *s1, const void *s2)
 {
-    return 1;
+    return strcmp((const char *)s1, (const char *) s2);
 }
 
 /** compute_hashes()
