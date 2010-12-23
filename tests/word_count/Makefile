@@ -33,11 +33,11 @@ include $(HOME)/Defines.mk
 
 LIBS += -L$(HOME)/$(LIB_DIR) -l$(PHOENIX)
 
-WC_OBJS := word_count.o sort.o
-# WC_OBJS_PTHREAD := word_count-pthread.o sort-pthread.o
-# WC_OBJS_SEQ := word_count-seq.o
+WC_OBJS := word_count.o
+WC_OBJS_PTHREAD := word_count-pthread.o sort-pthread.o
+WC_OBJS_SEQ := word_count-seq.o
 
-PROGS := word_count #word_count-pthread word_count-seq
+PROGS := word_count word_count-pthread word_count-seq
 
 .PHONY: default all clean
 
