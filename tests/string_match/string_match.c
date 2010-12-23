@@ -180,7 +180,7 @@ void string_match_map(map_args_t *args)
 		*key_file = 0;
 		key_file += 1;
 		CHECK_ERROR(key_len <= 0);
-		CHECK_ERROR(key_len > args->length);
+		CHECK_ERROR(key_len > MAX_REC_LEN);
 
 		memset(cur_word_final, 0, MAX_REC_LEN);
         compute_hashes(cur_word, cur_word_final, key_len);
