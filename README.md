@@ -117,7 +117,7 @@ We have successfully run the following examples with 4GB of shared memory:
 * Histogram with 1.4GB of input.
 * Word Count with 10MB of input.
 * Linear Regression with 500MB of input.
-
+* String Match with 500MB of input.
 
 ### Multiple MapReduce Jobs
 
