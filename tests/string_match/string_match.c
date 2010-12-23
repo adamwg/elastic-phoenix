@@ -96,6 +96,8 @@ int string_match_splitter(void *data_in, int req_units, map_args_t *out, splitte
     int available_bytes = data->keys_file_len - data->offset;
 	char *c;
 
+	assert(available_bytes >= 0);
+
 	if(req_units < 0) {
 		if(data->offset > 0) {
 			lseek(data->fd_keys, 0, SEEK_SET);
