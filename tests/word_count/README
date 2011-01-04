@@ -1,7 +1,6 @@
 Phoenix Project
 Wordcount Example Application Readme
-Last revised May 27, 2009
-
+Last revised January 4, 2011 for Dynamic Phoenix
 
 1. Application Overview
 -----------------------
@@ -16,7 +15,6 @@ in a text document.
 word_count.c: The version of the file that uses the MapReduce engine
 word_count-seq.c: The sequential version of the application
 word_count-pthread.c: The Pthreads version of the application
-sort.c/h: The sorting library that uses the MapReduce engine
 sort-pthread.c/h: The sorting library that uses Pthreads
 Makefile: Compiles all 3 versions of the application
 datafiles/*.txt: Sample text files of varying sizes that can be used as 
