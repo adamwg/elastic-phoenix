@@ -253,6 +253,7 @@ int wc_prep(void *data_in, map_reduce_args_t *args) {
 
 int wc_cleanup(void *data_in) {
 	wc_data_t *data = (wc_data_t *)data_in;
+	int i;
 
 	qsort(data->wc_vals.data, data->wc_vals.length, sizeof(keyval_t), mykeyvalcmp);
 
