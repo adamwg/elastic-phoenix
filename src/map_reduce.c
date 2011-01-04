@@ -382,15 +382,14 @@ int map_reduce(map_reduce_args_t *args) {
 		WORKER {
 			reduce (env);
 		}
-		dprintf("In scheduler, all reduce tasks are done, now scheduling merge tasks\n");
 		BARRIER();
+		dprintf("In scheduler, all reduce tasks are done, now scheduling merge tasks\n");
 	}
 
 	/* Merge - in the master */
 	MASTER {
 		/* Cleanup intermediate results. */
-		for (i = 0; i < env->intermediate_task_alloc_len; ++i)
-		{
+		for (i = 0; i < env->intermediate_task_alloc_len; ++i) {
 			shm_free (env->intermediate_vals[i]);
 		}
 		shm_free (env->intermediate_vals);
@@ -516,7 +515,7 @@ static mr_env_t *env_init (map_reduce_args_t *args) {
 	num_units = args->data_size / args->unit_size;
 	if(num_units > N_TASKS - 1) {
 		env->chunk_size = num_units / (N_TASKS - 1) + 1;
-		printf("There are %d units.	 Do %d at a time.\n", num_units, env->chunk_size);
+		printf("There are %d units. Do %d at a time.\n", num_units, env->chunk_size);
 	}
 
 	env->num_reduce_tasks = NUM_REDUCE_TASKS;
@@ -1468,11 +1467,7 @@ static void merge (mr_env_t* env) {
 	
 	if (th_arg.merge_len <= 1) {
 		/* Already merged, nothing to do here */
-		env->args->result->data = env->final_vals->arr;
-		env->args->result->length = env->final_vals->len;
-		
-		shm_free(env->final_vals);
-		
+		env->merge_vals = env->final_vals;
 		return;
 	}
 	
