@@ -1468,6 +1468,7 @@ static void merge (mr_env_t* env) {
 	if (th_arg.merge_len <= 1) {
 		/* Already merged, nothing to do here */
 		env->merge_vals = env->final_vals;
+		mr_shared_env->merge_vals = env->merge_vals;
 		return;
 	}
 	
