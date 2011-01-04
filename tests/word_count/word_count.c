@@ -49,6 +49,7 @@ typedef struct {
 	off_t fpos;
 	int fd;
 	int unit_size;
+	final_data_t wc_vals;
 } wc_data_t;
 
 enum {
@@ -252,11 +253,19 @@ int wc_prep(void *data_in, map_reduce_args_t *args) {
 
 int wc_cleanup(void *data_in) {
 	wc_data_t *data = (wc_data_t *)data_in;
+
+	qsort(data->wc_vals.data, data->wc_vals.length, sizeof(keyval_t), mykeyvalcmp);
+
+	dprintf("\nWordcount: Results (TOP %d):\n", DEFAULT_DISP_NUM);
+	for (i = 0; i < DEFAULT_DISP_NUM && i < data->wc_vals.length; i++) {
+		keyval_t * curr = &((keyval_t *)data->wc_vals.data)[i];
+		dprintf("%15s - %" PRIdPTR "\n", (char *)curr->key, (intptr_t)curr->val);
+	}
+
 	return(close(data->fd));
 }
 
 int main(int argc, char *argv[]) {
-	final_data_t wc_vals;
 	int i;
 	wc_data_t wc_data;
 
@@ -287,7 +296,7 @@ int main(int argc, char *argv[]) {
 	
 	map_reduce_args.unit_size = wc_data.unit_size;
 	map_reduce_args.partition = NULL; // use default
-	map_reduce_args.result = &wc_vals;
+	map_reduce_args.result = &wc_data.wc_vals;
 	
 	map_reduce_args.L1_cache_size = atoi(GETENV("MR_L1CACHESIZE"));//1024 * 1024 * 2;
 	map_reduce_args.num_map_threads = atoi(GETENV("MR_NUMTHREADS"));//8;
@@ -299,14 +308,6 @@ int main(int argc, char *argv[]) {
 	printf("Wordcount: Calling MapReduce Scheduler Wordcount\n");
 
 	CHECK_ERROR(map_reduce (&map_reduce_args) < 0);
-
-	qsort(wc_vals.data, wc_vals.length, sizeof(keyval_t), mykeyvalcmp);
-
-	dprintf("\nWordcount: Results (TOP %d):\n", DEFAULT_DISP_NUM);
-	for (i = 0; i < DEFAULT_DISP_NUM && i < wc_vals.length; i++) {
-		keyval_t * curr = &((keyval_t *)wc_vals.data)[i];
-		dprintf("%15s - %" PRIdPTR "\n", (char *)curr->key, (intptr_t)curr->val);
-	}
 
 	map_reduce_cleanup(&map_reduce_args);
 	CHECK_ERROR (map_reduce_finalize ());

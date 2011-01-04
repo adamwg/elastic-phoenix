@@ -126,6 +126,14 @@ executable.  For example, a common pattern is to do some computation in one
 MapReduce job then sort the output with another.  This is not possible in the
 current version of Dynamic Phoneix.
 
+An added complication here is that all workers and the master receive the same
+output data, not a copy.  This means that if you, for example, `qsort` the
+output data in your main program, the results will be unpredictable, since
+`qsort` will be running on the same data array simultaneously in multiple
+threads.  A reasonable way around this is to do the sort and output in the
+cleanup function, so it happens only the master.  See the word count sample for
+an example of this.
+
 ### Number of Workers
 
 Output queues for worker threads are pre-allocated, so the maximum number of
