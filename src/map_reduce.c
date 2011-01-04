@@ -424,12 +424,12 @@ int map_reduce_finalize () {
  * from a mapreduce job. */
 void map_reduce_cleanup (map_reduce_args_t *args) {
 	MASTER {
+		if(args->cleanup != NULL) {
+			args->cleanup(args->task_data);
+		}
 		if(args->result->data != NULL) {
 			shm_free(args->result->data);
 			args->result->data = NULL;
-		}
-		if(args->cleanup != NULL) {
-			args->cleanup(args->task_data);
 		}
 	}
 }
