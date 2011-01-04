@@ -85,16 +85,16 @@ echo "Done";
 echo -n "Running job ... ";
 n=0;
 
+# Run the master, then sleep a second to give it time to start up.
+ssh -T $MASTER "cd $PHOENIX_HOME; /usr/bin/time -f '%C -- %U user %S system %P cpu %e total' tests/$APPNAME/$APPNAME -m -v -d /dev/uio0 -s 4096 -- $ARGS 2>&1" 2>&1 > out-master.$PBS_JOBID.txt;
+sleep 1;
+
+# Run the workers
 for wk in $WORKERS; do
-	ssh -T $wk "cd $PHOENIX_HOME; tests/$APPNAME/$APPNAME worker $NWORKERS $ARGS 2>&1" 2>&1 > out-$wk.$PBS_JOBID.txt &;
+	ssh -T $wk "cd $PHOENIX_HOME; tests/$APPNAME/$APPNAME -w -v -d /dev/uio0 -s 4096 -- $ARGS 2>&1" 2>&1 > out-$wk.$PBS_JOBID.txt &;
 	n=$(($n + 1));
 	if [[ $n -eq $NWORKERS ]]; then break; fi;
 done;
-
-sleep 1;
-
-# Run the master
-ssh -T $MASTER "cd $PHOENIX_HOME; /usr/bin/time -f '%C -- %U user %S system %P cpu %e total' tests/$APPNAME/$APPNAME master $NWORKERS $ARGS 2>&1" 2>&1 > out-master.$PBS_JOBID.txt;
 
 echo "Done";
 
