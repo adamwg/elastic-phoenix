@@ -60,6 +60,7 @@ default: all
 all: $(HOME)/$(LIB_DIR)/$(TARGET)
 
 $(HOME)/$(LIB_DIR)/$(TARGET): $(TARGET)
+	mkdir -p $(HOME)/$(LIB_DIR)
 	cp $< $(HOME)/$(LIB_DIR)
 
 $(LIB_PHOENIX).a: $(OBJS)
@@ -74,3 +75,4 @@ $(LIB_PHOENIX).so: $(OBJS)
  
 clean:
 	rm -f $(HOME)/$(LIB_DIR)/$(TARGET) $(TARGET) $(OBJS)
+	rmdir $(HOME)/$(LIB_DIR)

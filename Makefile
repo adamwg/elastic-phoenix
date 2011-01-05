@@ -40,7 +40,7 @@ $(TARGET):
 
 tests:
 	@$(MAKE) -C $(TESTS_DIR) --no-print-directory
- 
+
 clean:
 	@$(MAKE) -C $(SRC_DIR) clean --no-print-directory
 	@$(MAKE) -C $(TESTS_DIR) clean --no-print-directory
