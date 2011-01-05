@@ -171,6 +171,7 @@ Contact Information
 -------------------
 
 Adam Wolfe Gordon <awolfe@cs.ualberta.ca>
+Paul Lu <paullu@cs.ualberta.ca>
 
 Links
 -----
