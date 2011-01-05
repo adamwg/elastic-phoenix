@@ -66,6 +66,33 @@ Phoenix applications take some framework arguments, which are stripped and
 processed by `map_reduce_init`.  Because of this, it is important to call
 `map_reduce_init` before processing any application-specific arguments.
 
+Sample Applications
+-------------------
+
+The tests directory contains several sample applications, based on the original
+sample applications included with Phoenix:
+
+* word_count is a simple word_count application, which operates the same way as
+  the original.
+* histogram calculates the histogram of a bitmap image, operating the same way
+  as the original.
+* linear_regression generates a linear approximation of a set of points, and
+  operates the same way as the original.
+* string_match looks through a list of keys, calculating a hash for each in
+  order to count how many times each of a hard-coded list of words appears.  It
+  has been modified slightly from the original to be more interesting.
+
+The following applications that were included in the original have been
+excluded:
+
+* matrix_multiply calcluated the output values in-place, i.e. it didn't emit
+  them to the MapReduce framework.  This doesn't work in Dynamic Phoenix, since
+  the workers run in separate processes.
+* pca requires multiple MapReduce tasks, which is currently not supported in
+  Dynamic Phoenix.
+* kmeans runs iterative MapReduce tasks, which is currently not supported in
+  Dynamic Phoenix.
+  
 Running an Application
 ----------------------
 

@@ -39,12 +39,6 @@ APPS := \
         word_count \
         string_match \
 
-# pca, mm, and kmeans generate their input data, so it's a bit more involved to
-# convert them to dynamic phoenix.
-#        matrix_multiply \
-#        pca \
-#        kmeans \
-
 default: all
 
 all: 
