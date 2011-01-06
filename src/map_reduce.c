@@ -383,6 +383,9 @@ int map_reduce(map_reduce_args_t *args) {
 			reduce (env);
 		}
 		BARRIER();
+		MASTER {
+			mr_shared_env->current_stage = TASK_TYPE_MERGE;
+		}
 		dprintf("In scheduler, all reduce tasks are done, now scheduling merge tasks\n");
 	}
 
