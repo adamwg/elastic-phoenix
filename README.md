@@ -1,6 +1,19 @@
 Dynamic Phoenix
 ===============
 
+Quick Start
+-----------
+
+1. Note that Dynamic Phoenix has been tested ONLY under Linux on 64-bit x86.  In
+   particular, running Dynamic Phoenix in virtual machines requires the Nahanni
+   shared memory system, which is available ONLY for Linux KVM.
+2. Build configuration is found in the `Defines.mk` file.
+3. `make` should build the Dynamic Phoenix framework and the example
+   applications in the `tests` directory.
+4. To run an application, first start the master, then start one or more
+   workers.  If using Nahanni shared memory, the master and workers can be in
+   separate virtual machines.
+
 Background
 ----------
 
@@ -45,26 +58,27 @@ For the most part, the Dynamic Phoenix API is identical to the original Phoenix
 API.  However, there are some key differences:
 
 1. The splitter function takes an additional parameter, a `splitter_mem_ops_t`,
-which contains pointers to memory allocation functions.  The splitter must use
-these functions to allocate the data returned in the map arguments.  This means
-that the common pattern of `mmap`ing a file and returning offsets from the
-splitter does not work in Dynamic Phoenix.
+   which contains pointers to memory allocation functions.  The splitter must
+   use these functions to allocate the data returned in the map arguments.  This
+   means that the common pattern of `mmap`ing a file and returning offsets from
+   the splitter does not work in Dynamic Phoenix.
 2. The splitter might be re-run if it generates too many tasks (see below).
-This means that we must be able to reset the splitter's state.  This is done by
-passing a negative `req_units` argument to the splitter.
+   This means that we must be able to reset the splitter's state.  This is done
+   by passing a negative `req_units` argument to the splitter.
 3. The framework provides a new function, `map_reduce_cleanup`, which should be
-called by applications when they are done with the results of a MapReduce job.
+   called by applications when they are done with the results of a MapReduce
+   job.
 4. Applications may provide two new functions, `prep` and `cleanup`, which will
-be executed only in the master process.  `prep` is called before any other work
-is done, and is a good place to open files that may only be present on the node
-running the master process.  The `cleanup` function is called by the
-`map_reduce_cleanup` function, in the master only.  It is a good place to close
-files that were opened in `prep`.
+   be executed only in the master process.  `prep` is called before any other
+   work is done, and is a good place to open files that may only be present on
+   the node running the master process.  The `cleanup` function is called by the
+   `map_reduce_cleanup` function, in the master only.  It is a good place to
+   close files that were opened in `prep`.
 5. `map_reduce_init` now takes two arguments, `argc` and `argv`, which should be
-pointers to your application's `argc` and `argv`.  This is because Dynamic
-Phoenix applications take some framework arguments, which are stripped and
-processed by `map_reduce_init`.  Because of this, it is important to call
-`map_reduce_init` before processing any application-specific arguments.
+   pointers to your application's `argc` and `argv`.  This is because Dynamic
+   Phoenix applications take some framework arguments, which are stripped and
+   processed by `map_reduce_init`.  Because of this, it is important to call
+   `map_reduce_init` before processing any application-specific arguments.
 
 Sample Applications
 -------------------
@@ -85,13 +99,16 @@ sample applications included with Phoenix:
 The following applications that were included in the original have been
 excluded:
 
-* matrix_multiply calcluated the output values in-place, i.e. it didn't emit
+* matrix_multiply calculated the output values in-place, i.e. it didn't emit
   them to the MapReduce framework.  This doesn't work in Dynamic Phoenix, since
   the workers run in separate processes.
 * pca requires multiple MapReduce tasks, which is currently not supported in
   Dynamic Phoenix.
 * kmeans runs iterative MapReduce tasks, which is currently not supported in
   Dynamic Phoenix.
+ 
+Input data for the sample applications can be downloaded from the original
+[Phoenix][] website.
   
 Running an Application
 ----------------------
@@ -151,7 +168,7 @@ We have successfully run the following examples with 4GB of shared memory:
 In standard Phoenix, you can run multiple MapReduce jobs in a single
 executable.  For example, a common pattern is to do some computation in one
 MapReduce job then sort the output with another.  This is not possible in the
-current version of Dynamic Phoneix.
+current version of Dynamic Phoenix.
 
 An added complication here is that all workers and the master receive the same
 output data, not a copy.  This means that if you, for example, `qsort` the
@@ -169,6 +186,11 @@ the default 4 threads per worker allows for 8 workers.
 
 Contact Information
 -------------------
+
+Dynamic Phoenix was developed in the Department of Computing Science at the
+University of Alberta.  Dynamic Phoenix is made available under a BSD-style
+license, found in the LICENSE file.  The original Phoenix source code was made
+available by Stanford University under the same license.
 
 Adam Wolfe Gordon <awolfe@cs.ualberta.ca>
 Paul Lu <paullu@cs.ualberta.ca>
