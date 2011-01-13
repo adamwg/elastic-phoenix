@@ -1,14 +1,14 @@
-Dynamic Phoenix
+Elastic Phoenix
 ===============
 
 Quick Start
 -----------
 
-1. Note that Dynamic Phoenix has been tested ONLY under Linux on 64-bit x86.  In
-   particular, running Dynamic Phoenix in virtual machines requires the Nahanni
+1. Note that Elastic Phoenix has been tested ONLY under Linux on 64-bit x86.  In
+   particular, running Elastic Phoenix in virtual machines requires the Nahanni
    shared memory system, which is available ONLY for Linux KVM.
 2. Build configuration is found in the `Defines.mk` file.
-3. `make` should build the Dynamic Phoenix framework and the example
+3. `make` should build the Elastic Phoenix framework and the example
    applications in the `tests` directory.
 4. To run an application, first start the master, then start one or more
    workers.  If using Nahanni shared memory, the master and workers can be in
@@ -28,17 +28,17 @@ single process, communicating using in-memory data structures.  Sometimes, as
 when using non-dedicated infrastructure, it is not possible to know in advance
 how many processors will be available.
 
-Dynamic Scaling
+Elastic Scaling
 ---------------
 
-Dynamic Phoenix allows multiple worker processes to participate in a single
+Elastic Phoenix allows multiple worker processes to participate in a single
 MapReduce job.  These processes can run in separate virtual machines running on
 the same physical host, using the [Nahanni][] shared memory mechanism for Linux
 KVM.  This allows computational power to be added to a job by launching another
-VM, perhaps automatically.  This makes Dynamic Phoenix well-suited to cloud
+VM, perhaps automatically.  This makes Elastic Phoenix well-suited to cloud
 environments, where resources are allocated as virtual machine instances.
 
-Dynamic scaling is accomplished by splitting computation between a single master
+Elastic scaling is accomplished by splitting computation between a single master
 process and at least one worker process.  The master is responsible for
 splitting the input data, generating tasks, and merging the final output.  The
 worker processes execute the map and reduce tasks.  Communication and
@@ -54,14 +54,14 @@ reduce tasks.
 API
 ---
 
-For the most part, the Dynamic Phoenix API is identical to the original Phoenix
+For the most part, the Elastic Phoenix API is identical to the original Phoenix
 API.  However, there are some key differences:
 
 1. The splitter function takes an additional parameter, a `splitter_mem_ops_t`,
    which contains pointers to memory allocation functions.  The splitter must
    use these functions to allocate the data returned in the map arguments.  This
    means that the common pattern of `mmap`ing a file and returning offsets from
-   the splitter does not work in Dynamic Phoenix.
+   the splitter does not work in Elastic Phoenix.
 2. The splitter might be re-run if it generates too many tasks (see below).
    This means that we must be able to reset the splitter's state.  This is done
    by passing a negative `req_units` argument to the splitter.
@@ -75,7 +75,7 @@ API.  However, there are some key differences:
    `map_reduce_cleanup` function, in the master only.  It is a good place to
    close files that were opened in `prep`.
 5. `map_reduce_init` now takes two arguments, `argc` and `argv`, which should be
-   pointers to your application's `argc` and `argv`.  This is because Dynamic
+   pointers to your application's `argc` and `argv`.  This is because Elastic
    Phoenix applications take some framework arguments, which are stripped and
    processed by `map_reduce_init`.  Because of this, it is important to call
    `map_reduce_init` before processing any application-specific arguments.
@@ -100,12 +100,12 @@ The following applications that were included in the original have been
 excluded:
 
 * matrix_multiply calculated the output values in-place, i.e. it didn't emit
-  them to the MapReduce framework.  This doesn't work in Dynamic Phoenix, since
+  them to the MapReduce framework.  This doesn't work in Elastic Phoenix, since
   the workers run in separate processes.
 * pca requires multiple MapReduce tasks, which is currently not supported in
-  Dynamic Phoenix.
+  Elastic Phoenix.
 * kmeans runs iterative MapReduce tasks, which is currently not supported in
-  Dynamic Phoenix.
+  Elastic Phoenix.
  
 Input data for the sample applications can be downloaded from the original
 [Phoenix][] website.
@@ -113,7 +113,7 @@ Input data for the sample applications can be downloaded from the original
 Running an Application
 ----------------------
 
-Every Dynamic Phoenix application takes the following arguments:
+Every Elastic Phoenix application takes the following arguments:
 
 * -h and -v: Are we running on the host (-h) or in a VM (-v)?
 * -m and -w: Are we the master (-m) process or a worker (-w)?
@@ -136,7 +136,7 @@ Known Issues and Limitations
 
 When running processes in multiple virtual machines, it is important that all
 machines being used have the same version of glibc installed.  In particular,
-because Dynamic Phoenix relies on pthreads structures in inter-VM shared memory,
+because Elastic Phoenix relies on pthreads structures in inter-VM shared memory,
 different pthreads implementations between machines can cause problems.
 
 ### Job Size Restrictions
@@ -168,7 +168,7 @@ We have successfully run the following examples with 4GB of shared memory:
 In standard Phoenix, you can run multiple MapReduce jobs in a single
 executable.  For example, a common pattern is to do some computation in one
 MapReduce job then sort the output with another.  This is not possible in the
-current version of Dynamic Phoenix.
+current version of Elastic Phoenix.
 
 An added complication here is that all workers and the master receive the same
 output data, not a copy.  This means that if you, for example, `qsort` the
@@ -187,8 +187,8 @@ the default 4 threads per worker allows for 8 workers.
 Contact Information
 -------------------
 
-Dynamic Phoenix was developed in the Department of Computing Science at the
-University of Alberta.  Dynamic Phoenix is made available under a BSD-style
+Elastic Phoenix was developed in the Department of Computing Science at the
+University of Alberta.  Elastic Phoenix is made available under a BSD-style
 license, found in the LICENSE file.  The original Phoenix source code was made
 available by Stanford University under the same license.
 

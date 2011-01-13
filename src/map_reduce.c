@@ -161,7 +161,7 @@ static void reduce (mr_env_t* mr);
 static void merge (mr_env_t* mr);
 
 static void USAGE() {
-	printf("Dynamic Phoenix arguments:\n"
+	printf("Elastic Phoenix arguments:\n"
 		   "-h and -v\n"
 		   "\tAre we running on the host (-h) or in a VM (-v)?\n"
 		   "\tExactly one must be specified.\n"
