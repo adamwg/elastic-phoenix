@@ -199,6 +199,10 @@ Paul Lu <paullu@cs.ualberta.ca>
 Links
 -----
 
+* [Phoenix][]
+* [MapReduce][]
+* [Nahanni][]
+
 [Phoenix]: http://mapreduce.stanford.edu
 [MapReduce]: http://labs.google.com/papers/mapreduce.html
 [Nahanni]: http://gitorious.com/nahanni
