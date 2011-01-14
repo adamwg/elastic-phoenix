@@ -187,8 +187,8 @@ the default 4 threads per worker allows for 8 workers.
 Contact Information
 -------------------
 
-Elastic Phoenix was developed in the Department of Computing Science at the
-University of Alberta.  Elastic Phoenix is made available under a BSD-style
+Elastic Phoenix was developed in the [Department of Computing Science at the
+University of Alberta][].  Elastic Phoenix is made available under a BSD-style
 license, found in the LICENSE file.  The original Phoenix source code was made
 available by Stanford University under the same license.
 
@@ -202,7 +202,9 @@ Links
 * [Phoenix][]
 * [MapReduce][]
 * [Nahanni][]
+* [Department of Computing Science at the University of Alberta][]
 
 [Phoenix]: http://mapreduce.stanford.edu
 [MapReduce]: http://labs.google.com/papers/mapreduce.html
 [Nahanni]: http://gitorious.com/nahanni
+[Department of Computing Science at the University of Alberta]: http://www.cs.ualberta.ca
