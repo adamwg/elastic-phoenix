@@ -38,6 +38,8 @@ APPS := \
         linear_regression \
         word_count \
         string_match \
+        elasticity \
+        matrix_multiply \
 
 default: all
 

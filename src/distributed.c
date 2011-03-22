@@ -19,8 +19,13 @@ void shm_init(bool in_vm, char *shm_device, size_t shm_size) {
 	if(in_vm) {
 		fd = open(shm_device, O_RDWR);
 	} else {
-		fd = shm_open(shm_device, O_RDWR, 0);
-	}
+                if(access(shm_device, F_OK) != 0) {
+                    fd = shm_open(shm_device, O_RDWR|O_CREAT, S_IRWXU);
+                    ftruncate(fd, shm_size*1024L*1024L);
+                } else {
+                    fd = shm_open(shm_device, O_RDWR, 0);
+                }
+        }
 	
 	CHECK_ERROR(fd < 0);
 
