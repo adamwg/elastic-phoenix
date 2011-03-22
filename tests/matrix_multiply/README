@@ -1,0 +1,31 @@
+Phoenix Project
+Matrix Multiply Example Application Readme
+Revised February 11, 2011 for Elastic Phoenix
+
+
+1. Application Overview
+-----------------------
+
+Matrix Multiply application computes the product of 2 matrices
+of the same size.
+
+
+2. Provided Files
+-----------------
+
+matrix_multiply.c: The version of the file that uses the MapReduce engine
+Makefile: Compiles the application
+README: This file
+
+
+3. Running the Application
+--------------------------
+
+Run 'make' to compile the application. 
+
+./matrix_multiply <side of matrix> - MapReduce Version
+side of matrix: Specifies the length of the side of the matrix (both matrices are of the same size) (required)
+
+The application generates two matrices (of all 1's, for easy result verification), then multiplies then and displays the sum of all the numbers in the resulting matrix.
+
+End File
