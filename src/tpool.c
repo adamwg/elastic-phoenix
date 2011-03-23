@@ -25,6 +25,7 @@
 */ 
 
 #include <pthread.h>
+#include <signal.h>
 #include <assert.h>
 #include <semaphore.h>
 
@@ -63,6 +64,7 @@ tpool_t* tpool_create (int num_threads)
     int             i, ret;
     tpool_t         *tpool;
     pthread_attr_t  attr;
+	sigset_t sigs;
 
     tpool = mem_calloc (1, sizeof (tpool_t));
     if (tpool == NULL) 
@@ -92,6 +94,11 @@ tpool_t* tpool_create (int num_threads)
     CHECK_ERROR (pthread_attr_setscope (&attr, PTHREAD_SCOPE_SYSTEM));
     CHECK_ERROR (pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED));
 
+	/* Block sigint before starting other threads, so they inherit this mask */
+	sigemptyset(&sigs);
+	sigaddset(&sigs, SIGINT);
+	sigprocmask(SIG_BLOCK, &sigs, NULL);
+
     tpool->die = 0;
     for (i = 0; i < num_threads; ++i) {
         /* Initialize thread argument. */
@@ -113,7 +120,10 @@ tpool_t* tpool_create (int num_threads)
             goto fail_thread_create;
     }
 
-    return tpool;
+	/* Unblock sigint in thread 0 now that we've created the rest. */
+	sigprocmask(SIG_UNBLOCK, &sigs, NULL);
+
+	return tpool;
 
 fail_thread_create:
     --i;

@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -114,6 +115,9 @@ typedef struct {
 
 	int worker_id;					/* The worker ID of this process, used to
 									 * offset thread IDs */
+
+	/* True when this worker should leave the computation */
+	bool killed;
 } mr_env_t;
 
 #ifdef TIMING
@@ -296,12 +300,25 @@ int map_reduce_init (int *argc, char ***argv) {
 	return(0);
 }
 
+static void die(mr_env_t *env) {
+	/* Stop the thread pool cleanly */
+	tpool_destroy(env->tpool);
+	/* Lock the BPL so that this happens immediately _after_ a barrier, not
+	 * during one. */
+	pthread_spin_lock(&mr_shared_env->bpl);
+	/* Decrement the worker counter for barrier's sake */
+	mr_shared_env->worker_counter -= 1;
+	pthread_spin_unlock(&mr_shared_env->bpl);
+	exit(0);
+}
+
 int map_reduce(map_reduce_args_t *args) {
 	int i;
 	mr_env_t* env;
 
 	MASTER {
 		mr_shared_env->worker_counter = 0;
+		mr_shared_env->worker_max = 0;
 		barrier_init(&mr_shared_env->mr_barrier);
 		pthread_spin_init(&mr_shared_env->bpl, PTHREAD_PROCESS_SHARED);
 		pthread_spin_lock(&mr_shared_env->bpl);
@@ -365,6 +382,10 @@ int map_reduce(map_reduce_args_t *args) {
 	if(mr_shared_env->current_stage == TASK_TYPE_MAP) {
 		WORKER {
 			map (env);
+			/* If we were killed, stop the tpool so the threads die cleanly, then exit */
+			if(env->killed) {
+				die(env);
+			}
 		}
 		BARRIER();
 
@@ -381,6 +402,9 @@ int map_reduce(map_reduce_args_t *args) {
 		/* Run reduce tasks and get final values - in workers */
 		WORKER {
 			reduce (env);
+			if(env->killed) {
+				die(env);
+			}
 		}
 		BARRIER();
 		MASTER {
@@ -452,12 +476,30 @@ static void env_fini (mr_env_t* env) {
 	mem_free (env);
 }
 
+/* Removes this worker from the computation, changing the worker counter so that
+ * barriers will work properly in other workers.
+ *
+ * Called on SIGINT.
+ */ 
+static void remove_worker_handler(int sig) {
+	mr_env_t *env = get_env();
+	
+	CHECK_ERROR(sig != SIGINT);
+
+	printf("Caught SIGINT... Exiting gracefully\n");
+	
+	/* Set the killed flag so tasks stop running */
+	env->killed = true;
+}
+
 /* Setup global state. */
 static mr_env_t *env_init (map_reduce_args_t *args) {
 	mr_env_t	*env;
 	int			i;
 	int			num_procs;
 	int			num_units;
+
+	struct sigaction remove_worker;
 
 	env = mem_malloc (sizeof (mr_env_t));
 	if (env == NULL) {
@@ -474,12 +516,22 @@ static mr_env_t *env_init (map_reduce_args_t *args) {
 		 * halfway through */
 		pthread_spin_lock(&mr_shared_env->bpl);
 		/* Since we lock, this doesn't need to be an atomic op */
+		if(mr_shared_env->worker_counter == mr_shared_env->worker_max) {
+			mr_shared_env->worker_max += 1;
+		}
 		env->worker_id = mr_shared_env->worker_counter++;
-		pthread_spin_unlock(&mr_shared_env->bpl);
 		if((env->worker_id + 1) * L_NUM_THREADS > MAX_WORKER_THREADS) {
+			mr_shared_env->worker_counter -= 1;
 			printf("Cannot join mapreduce -- too many workers.\n");
 			return NULL;
 		}
+		pthread_spin_unlock(&mr_shared_env->bpl);
+
+		/* Set up the signal handler that lets us remove a worker */
+		env->killed = false;
+		memset(&remove_worker, 0, sizeof(struct sigaction));
+		remove_worker.sa_handler = remove_worker_handler;
+		sigaction(SIGINT, &remove_worker, NULL);
 	}
 	
 	/* 1. Determine paramenters. */
@@ -677,7 +729,7 @@ start_workers (mr_env_t* env, thread_arg_t *th_arg) {
 	mem_free (rets);
 
 	mem_free(env->tinfo);
-	dprintf("Status: All tasks have completed\n"); 
+	dprintf("Status: All tasks have completed\n");
 }
 
 typedef struct {
@@ -751,7 +803,7 @@ static void *map_worker (void *args) {
 
 	mwta.lgrp = loc_get_lgrp();
 
-	while (map_worker_do_next_task (env, thread_index, &mwta)) {
+	while (!env->killed && map_worker_do_next_task (env, thread_index, &mwta)) {
 		user_time += mwta.run_time;
 		num_assigned++;
 	}
@@ -914,7 +966,7 @@ static void *reduce_worker (void *args) {
 	rwta.num_map_threads = num_map_threads;
 	rwta.lgrp = loc_get_lgrp();
 
-	while (reduce_worker_do_next_task (env, thread_index, &rwta)) {
+	while (!env->killed && reduce_worker_do_next_task (env, thread_index, &rwta)) {
 		user_time += rwta.run_time;
 		++num_assigned;
 	}
@@ -1465,7 +1517,7 @@ static void merge (mr_env_t* env) {
 	mem_memset (&th_arg, 0, sizeof (thread_arg_t));
 	th_arg.task_type = TASK_TYPE_MERGE;
 	
-	th_arg.merge_len = mr_shared_env->worker_counter * L_NUM_THREADS;
+	th_arg.merge_len = mr_shared_env->worker_max * L_NUM_THREADS;
 	th_arg.merge_input = env->final_vals;
 	
 	if (th_arg.merge_len <= 1) {

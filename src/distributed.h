@@ -41,6 +41,7 @@ typedef struct {
 	int num_reduce_tasks;
 
 	volatile int worker_counter;
+	volatile int worker_max;
 	int current_stage;
 } mr_shared_env_t;
 
