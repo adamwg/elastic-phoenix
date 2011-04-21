@@ -742,7 +742,7 @@ static void *map_worker (void *args) {
 	env->tinfo[thread_index].tid = pthread_self();
 
 	/* Bind thread. */
-	CHECK_ERROR (proc_bind_thread (th_arg->cpu_id) != 0);
+	//CHECK_ERROR (proc_bind_thread (th_arg->cpu_id) != 0);
 
 	CHECK_ERROR (pthread_setspecific (env_key, env));
 #ifdef TIMING
@@ -760,7 +760,7 @@ static void *map_worker (void *args) {
 			num_assigned, th_arg->cpu_id);
 
 	/* Unbind thread. */
-	CHECK_ERROR (proc_unbind_thread () != 0);
+	//CHECK_ERROR (proc_unbind_thread () != 0);
 
 	return (void *)0;
 }
@@ -900,7 +900,7 @@ static void *reduce_worker (void *args) {
 	env->tinfo[thread_index].tid = pthread_self();
 
 	/* Bind thread. */
-	CHECK_ERROR (proc_bind_thread (th_arg->cpu_id) != 0);
+	//CHECK_ERROR (proc_bind_thread (th_arg->cpu_id) != 0);
 
 	CHECK_ERROR (pthread_setspecific (env_key, env));
 #ifdef TIMING
@@ -925,7 +925,7 @@ static void *reduce_worker (void *args) {
 	iter_finalize (&rwta.itr);
 
 	/* Unbind thread. */
-	CHECK_ERROR (proc_unbind_thread () != 0);
+	//CHECK_ERROR (proc_unbind_thread () != 0);
 
 	return (void *)0;
 }
@@ -947,7 +947,7 @@ static void *merge_worker (void *args) {
 	/* Bind thread.
 	   Spread out the merge workers as much as possible. */
 	cpu = th_arg->cpu_id;
-	CHECK_ERROR (proc_bind_thread (cpu) != 0);
+	//CHECK_ERROR (proc_bind_thread (cpu) != 0);
 	CHECK_ERROR (pthread_setspecific (env_key, env));
 
 	/* Assumes num_merge_threads is modified before each call. */
@@ -977,7 +977,7 @@ static void *merge_worker (void *args) {
 	}
 
 	/* Unbind thread. */
-	CHECK_ERROR (proc_unbind_thread () != 0);
+	//CHECK_ERROR (proc_unbind_thread () != 0);
 
 	return (void *)0;
 }
